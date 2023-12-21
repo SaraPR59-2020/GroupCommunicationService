@@ -3,6 +3,8 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
 
+#include "../Common/Common.cpp" 
+
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -18,6 +20,10 @@
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
+
+char groupName[MAX_MESSAGE_LENGTH];
+int messageLen;
+
 
 int main()
 {
@@ -64,54 +70,51 @@ int main()
 	else
 	{
 		printf("Succasfuly conected to service! \n");
+	}
+	
+	//non-blocking mode
+	u_long mode = 1;
+	iResult = ioctlsocket(connectSocket, FIONBIO, &mode);
+	if (iResult != NO_ERROR) {
 
+		printf("ioctlsocket failed with error: %ld\n", iResult);
+		return false;
 	}
 
 	do
 	{
-		printf("Enter message: ");
-		gets_s(databuffer, BUFFER_SIZE);
+		int option = 0;
+		printf("\t\t\t\tGROUP COMUNICATION SERVIS DATA TO SEND\n");
+		printf("\t1. ENTER GROUP\n");
+		printf("\t2. EXIT\n");
+		printf("\n\n");
+		option = _getch(); // ascii vrednost karaktera
 
-		// Send message to server using connected socket
-		iResult = send(connectSocket, databuffer, (int)strlen(databuffer), 0);
+		switch (option - 48) {
+		case 1:
+			printf("Enter name of group chat: \n");
+			char queueName[MAX_MESSAGE_LENGTH];
+			gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
+			//printf(queueName);
+			strcpy_s(groupName, MAX_MESSAGE_LENGTH, queueName);
 
-		// Check result of send function
-		if (iResult == SOCKET_ERROR)
-		{
-			printf("send failed with error: %d\n", WSAGetLastError());
-			closesocket(connectSocket);
-			WSACleanup();
-			return 1;
-		}
-
-		iResult = recv(connectSocket, databuffer, BUFFER_SIZE, 0);
-		if (iResult > 0)
-		{
-			databuffer[iResult] = '\0';
-			printf("Server send: %s\n", databuffer);
-		}
-		else if (iResult == 0)
-		{
-			printf("Conection with server closed/\n");
-			closesocket(connectSocket);
-			if (WSACleanup() != 0)
-			{
-				printf("WSACleanup faild with error: %d", WSAGetLastError());
-				return 1;
+			messageLen = strlen(queueName);
+			if (messageLen == 0) {
+				printf("Invalid type of input, try agian...\n");
+				break;
 			}
-			return 0;
+
+			Connect(connectSocket, queueName);
+			break;
+
+		case 2:
+			Disconnect(connectSocket, queueName);
+			break;
+		default:
+			printf("Invalid type of input, try agian...\n");
+			break;
 		}
-		else
-		{
-			printf("Recv failed with error: %d\n", WSAGetLastError());
-			closesocket(connectSocket);
-			if (WSACleanup() != 0)
-			{
-				printf("WSACleanup faild with error: %d", WSAGetLastError());
-				return 1;
-			}
-			return 1;
-		}
+		printf("\n\n");
 
 	} while (true);
 

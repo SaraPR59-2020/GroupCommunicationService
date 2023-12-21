@@ -3,6 +3,8 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
 
+#include "../Common/Common.cpp" 
+
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -14,8 +16,16 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
+DWORD WINAPI ClientHandle(LPVOID params);
+
+
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
+
+typedef struct pom {
+	SOCKET my_socket;
+	int idx;
+} pom;
 
 
 int main()
@@ -84,65 +94,59 @@ int main()
 	SOCKET acceptSocket = INVALID_SOCKET;
 
 	printf("Server socket is set to listening mode. Waiting for new connection.\n");
+
+	int clientNum = 0;
+
+	FD_SET set;
+	timeval timeVal;
+	timeVal.tv_sec = 1;
+	timeVal.tv_usec = 0;
+
 	do
 	{
-		sockaddr_in clientAddr;
-		int clientAddrSize = sizeof(clientAddr);
+		FD_ZERO(&set);
+		FD_SET(listenSocket, &set);
 
-		acceptSocket = accept(listenSocket, (struct sockaddr*)&clientAddr, &clientAddrSize);
-		if (acceptSocket == INVALID_SOCKET)
+		int selectResult = select(0, &set, NULL, NULL, &timeVal);
+
+		if (selectResult == SOCKET_ERROR)
 		{
-			printf("Accept failed with error: %d\n", WSAGetLastError());
-			closesocket(acceptSocket);
-			if (WSACleanup() != 0)
-			{
-				printf("WSACleanup faild with error: %d\n", WSAGetLastError());
-				return 1;
-			}
+			printf("Select failed with error: %d\n", WSAGetLastError());
+			closesocket(listenSocket);
+			WSACleanup();
 			return 1;
 		}
-		printf("Successfully conected to Client1. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-		
-		do
+		else if (selectResult == 0) // timeout expired
 		{
-			iResult = recv(acceptSocket, databuffer, BUFFER_SIZE, 0);
-			if (iResult > 0)	// Check if message is successfully received
+
+			continue;
+		}
+		else if (FD_ISSET(listenSocket, &set))
+		{
+			sockaddr_in clientAddr;
+			int clientAddrSize = sizeof(clientAddr);
+
+			acceptSocket = accept(listenSocket, (struct sockaddr*)&clientAddr, &clientAddrSize);
+			if (acceptSocket == INVALID_SOCKET)
 			{
-				databuffer[iResult] = '\0';
-
-				// Log message text
-				printf("Client sent: %s.\n", databuffer);
-
-
-			}
-			else if (iResult == 0)	// Check if shutdown command is received
-			{
-				// Connection was closed successfully
-				printf("Connection with closed.\n");
-				shutdown(acceptSocket, SD_BOTH);
+				printf("Accept failed with error: %d\n", WSAGetLastError());
 				closesocket(acceptSocket);
-				break;
+				if (WSACleanup() != 0)
+				{
+					printf("WSACleanup faild with error: %d\n", WSAGetLastError());
+					return 1;
+				}
+				return 1;
 			}
-			else	// There was an error during recv
-			{
-
-				printf("recv failed with error: %d\n", WSAGetLastError());
-				shutdown(acceptSocket, SD_BOTH);
-				closesocket(acceptSocket);
-				break;
-			}
-
-			printf("Enter message: ");
-			gets_s(databuffer, BUFFER_SIZE);
-
-			iResult = send(acceptSocket, databuffer, (int)strlen(databuffer), 0);
-			if (iResult == INVALID_SOCKET)
-			{
-				printf("Sending test mesage to client1 failed with error: %d\n", WSAGetLastError());
-				closesocket(listenSocket);
-				break;
-			}
-		} while (true);
+			printf("Successfully conected to Client. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+			pom params = { 
+				acceptSocket,
+				clientNum 
+			};
+			//printf(databuffer);
+			HANDLE thread = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
+			clientNum++;
+		}
 	} while (true);
 
 	iResult = shutdown(acceptSocket, SD_BOTH);
@@ -168,6 +172,64 @@ int main()
 		printf("WSACleanup faild with error: %d\n", WSAGetLastError());
 		return 1;
 	}
+	return 0;
+}
+
+//thread for conection: accepting client into group, entering client in hash table and putting message into queue
+DWORD WINAPI ClientHandle(LPVOID params)
+{
+	pom p = *(pom*)params;
+	SOCKET acceptedSocket = p.my_socket;
+	int ind = p.idx;
+
+	FD_SET set;
+	timeval timeVal;
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+	bool odjavljen = false;
+	int iResult;
+
+	do {
+		FD_ZERO(&set);
+		FD_SET(acceptedSocket, &set);
+
+		char dataBuffer[BUFFER_SIZE];
+		if (odjavljen)
+			break;
+		iResult = select(0, &set, NULL, NULL, &timeVal);
+		if (iResult == SOCKET_ERROR)
+		{
+			printf("select failed: %ld\n", WSAGetLastError());
+			closesocket(acceptedSocket);
+			odjavljen = true;
+		}
+		else if (iResult == 0)
+		{
+			Sleep(1000);
+			continue;
+		}
+		else
+		{
+			int iResult = recv(acceptedSocket, dataBuffer, BUFFER_SIZE, 0);
+
+			if (iResult > 0)	
+			{
+				printf("Choosen group: \t");
+				printf(dataBuffer);
+			}
+			else if (iResult == 0)
+			{
+				printf("Connection with client closed.\n");
+				closesocket(acceptedSocket);
+			}
+			else
+			{
+				printf("recv failed with error: %d\n", WSAGetLastError());
+				closesocket(acceptedSocket);
+			}
+		}
+	} while (true);
+	printf("The client has been closed\n");
 	return 0;
 }
 
