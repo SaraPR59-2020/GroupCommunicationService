@@ -20,13 +20,13 @@
 #define MAX_SOCKETS_IN_GROUP 10
 
 #pragma region list_structs
-typedef struct list_socket_item {
+typedef struct listsocket_item {
 	SOCKET socket;
-	struct list_socket_item* next;
-} list_socket_item;
+	struct listsocket_item* next;
+} listsocket_item;
 //zna se lista konkretna sa nekim properijima kao 
 typedef struct list_socket {
-	list_socket_item* head;
+	listsocket_item* head;
 	int len;
 	int limit;
 } list_socket;
@@ -59,6 +59,8 @@ typedef struct {
 } hash_table;
 #pragma endregion hash_structs
 
+
+//functions for conection action and communication thread
 list_socket* init_list();
 bool list_add(list_socket* list, SOCKET sock);
 

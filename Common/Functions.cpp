@@ -12,13 +12,13 @@ list_socket* init_list() {
 }
 
 bool list_add(list_socket* list, SOCKET sock) {
-	list_socket_item* temp_ = list->head;
+	listsocket_item* temp_ = list->head;
 	if (list->len < list->limit) {
-		list_socket_item* new_item = (list_socket_item*)malloc(sizeof(list_socket_item));
+		listsocket_item* new_item = (listsocket_item*)malloc(sizeof(listsocket_item));
 		new_item->socket = sock;
 		new_item->next = NULL;
 
-		list_socket_item* current = list->head;
+		listsocket_item* current = list->head;
 		if (current == NULL) {
 			current = new_item;
 			list->head = current;

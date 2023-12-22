@@ -258,8 +258,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
 						dataBuffer[i] = dataBuffer[i + 1];
 
-					printf("Client wants to disconnect from group: \t");
-					printf(dataBuffer);
+					printf("Client wants to disconnect from group: %s\n", dataBuffer);
 				}
 			}
 			else if (iResult == 0)

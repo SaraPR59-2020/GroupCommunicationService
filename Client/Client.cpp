@@ -27,6 +27,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam);
 char groupName[MAX_MESSAGE_LENGTH];
 HANDLE hRecv;
 int messageLen;
+bool shutingDown = false;
 
 
 int main()
@@ -93,39 +94,86 @@ int main()
 	while(doWhile)
 	{
 		int option = 0;
-		printf("\t\t\t\tGROUP COMUNICATION SERVIS DATA TO SEND\n");
+		printf("\t\t\t\tGROUP COMMUNICATION SERVIS\n");
 		printf("\t1. ENTER GROUP\n");
 		printf("\t2. EXIT\n");
-		printf("\n\n");
+		printf("\n");
 		option = _getch();
 
 		switch (option - 48) {
 		case 1:
-			printf("Enter name of group chat: \n");
+			printf("Enter name of group chat (min three characters): \n");
 			char queueName[MAX_MESSAGE_LENGTH];
 			gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
 			strcpy_s(groupName, MAX_MESSAGE_LENGTH, queueName);
 			strcat(queueName, "C");
 			//printf(queueName);
 			messageLen = strlen(queueName);
-			if (messageLen == 0) {
+			if (messageLen <= 2) {
 				printf("Invalid type of input, try agian...\n");
 				break;
 			}
+			else
+			{
+				Connect(connectSocket, queueName);
+				while (doWhile)
+				{
+					int option = 0;
+					printf("\t\t\t\tGROUP COMMUNICATION SERVIS\n");
+					printf("\t1. SEND MESSAGE TO THE GROUP\n");
+					printf("\t2. EXIT GROUP AND SERVICE\n");
+					printf("\n");
+					option = _getch();
+					char delimiter[] = "#";
 
-			Connect(connectSocket, queueName);
-			break;
+					switch (option - 48) {
+					case 1:
+						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
+						char queueName1[MAX_MESSAGE_LENGTH];
+						char input[MAX_MESSAGE_LENGTH];
+						gets_s(input, MAX_MESSAGE_LENGTH - 1);
 
+						
+						char* before, * after;
+						before = strtok(input, delimiter);
+						after = strtok(NULL, delimiter);
+
+						strcpy(queueName1, groupName);
+						strcat(queueName1, "#");
+						strcat(queueName1, before);
+						strcat(queueName1, after);
+
+						strcat(queueName1, "S");
+
+						_getch();
+
+					case 2:
+						char queueName2[MAX_MESSAGE_LENGTH];
+						strcpy_s(queueName2, MAX_MESSAGE_LENGTH, groupName);
+						strcat(queueName2, "D");
+						//printf(queueName2);
+						printf("Sending request for disconnection...\n");
+						Disconnect(connectSocket, queueName2);
+						doWhile = false;
+						break;
+					default:
+						printf("Invalid type of input, try agian...\n");
+						break;
+					}
+					printf("\n");
+				};
+				break;
+			}
 		case 2:
-			Disconnect(connectSocket, queueName);
+			printf("Shutingdown client...\n");
+			shutingDown = true;
 			doWhile = false;
 			break;
 		default:
 			printf("Invalid type of input, try agian...\n");
 			break;
 		}
-		printf("\n\n");
-
+		printf("\n");
 	};
 
 	iResult = shutdown(connectSocket, SD_BOTH);
@@ -167,7 +215,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 
 	bool serverOut = false;
 
-	while (1) {
+	while (shutingDown != true) {
 
 		FD_ZERO(&set);
 		FD_SET(connectSocket, &set);
