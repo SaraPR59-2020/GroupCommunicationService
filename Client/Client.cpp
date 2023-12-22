@@ -1,6 +1,7 @@
 // Client.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define SafeCloseHandle(handle) if(handle) CloseHandle(handle);
 #define WIN32_LEAN_AND_MEAN
 
 #include "../Common/Common.cpp" 
@@ -21,7 +22,10 @@
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
 
+DWORD WINAPI ThreadRECV(LPVOID lpParam);
+
 char groupName[MAX_MESSAGE_LENGTH];
+HANDLE hRecv;
 int messageLen;
 
 
@@ -81,23 +85,28 @@ int main()
 		return false;
 	}
 
-	do
+	//thread for news
+	hRecv = CreateThread(NULL, NULL, &ThreadRECV, &connectSocket, NULL, NULL);
+
+	bool doWhile = true;
+
+	while(doWhile)
 	{
 		int option = 0;
 		printf("\t\t\t\tGROUP COMUNICATION SERVIS DATA TO SEND\n");
 		printf("\t1. ENTER GROUP\n");
 		printf("\t2. EXIT\n");
 		printf("\n\n");
-		option = _getch(); // ascii vrednost karaktera
+		option = _getch();
 
 		switch (option - 48) {
 		case 1:
 			printf("Enter name of group chat: \n");
 			char queueName[MAX_MESSAGE_LENGTH];
 			gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
-			//printf(queueName);
 			strcpy_s(groupName, MAX_MESSAGE_LENGTH, queueName);
-
+			strcat(queueName, "C");
+			//printf(queueName);
 			messageLen = strlen(queueName);
 			if (messageLen == 0) {
 				printf("Invalid type of input, try agian...\n");
@@ -109,6 +118,7 @@ int main()
 
 		case 2:
 			Disconnect(connectSocket, queueName);
+			doWhile = false;
 			break;
 		default:
 			printf("Invalid type of input, try agian...\n");
@@ -116,12 +126,12 @@ int main()
 		}
 		printf("\n\n");
 
-	} while (true);
+	};
 
 	iResult = shutdown(connectSocket, SD_BOTH);
 	if (iResult == SOCKET_ERROR)
 	{
-		printf("SD faailed with error: %d", WSAGetLastError());
+		printf("SD failed with error: %d", WSAGetLastError());
 		printf("Enter word on selected letter to send: ");
 		closesocket(connectSocket);
 		if (WSACleanup() != 0)
@@ -131,7 +141,7 @@ int main()
 		}
 	}
 
-	printf("press any key o exit: ");
+	printf("Press any key o exit: ");
 	_getch();
 
 	closesocket(connectSocket);
@@ -139,6 +149,79 @@ int main()
 	{
 		printf("WSACleanup faild with error: %d", WSAGetLastError());
 		return 1;
+	}
+	return 0;
+}
+
+//thread for communication: accepts news from service 
+DWORD WINAPI ThreadRECV(LPVOID lpParam) {
+
+	int iResult;
+	SOCKET connectSocket = *(SOCKET*)lpParam;
+	char dataBuffer[BUFFER_SIZE];
+
+	FD_SET set;
+	timeval timeVal;
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	bool serverOut = false;
+
+	while (1) {
+
+		FD_ZERO(&set);
+		FD_SET(connectSocket, &set);
+
+		iResult = select(0, &set, NULL, NULL, &timeVal);
+
+		if (iResult == SOCKET_ERROR)
+		{
+			serverOut = true;
+
+			printf("select failed: %ld\n", WSAGetLastError());
+			printf("the server probably disconnected\n");
+			SafeCloseHandle(hRecv);
+			return 0;
+		}
+
+		if (iResult == 0)
+		{
+			Sleep(1000);
+			continue;
+		}
+		if (iResult > 0) {
+
+			FD_SET set;
+			timeval timeVal;
+			timeVal.tv_sec = 0;
+			timeVal.tv_usec = 0;
+			FD_ZERO(&set);
+			FD_SET(connectSocket, &set);
+
+			iResult = select(0, &set, NULL, NULL, &timeVal);
+			if (iResult == SOCKET_ERROR)
+			{
+				printf("select failed in ReceiveFunction: %ld\n", WSAGetLastError());
+			}
+			else if (iResult == 0)
+			{
+				Sleep(1000);
+				continue;
+			}
+			else if (iResult > 0)
+			{
+				iResult = recv(connectSocket, dataBuffer, BUFFER_SIZE, 0);
+
+				if (iResult > 0) {
+					printf("News from service: %s\n", dataBuffer);
+				}
+				else {
+					// there was an error during recv
+					printf("recv failed with error: %d\n", WSAGetLastError());
+					closesocket(connectSocket);
+				}
+			}
+		}
 	}
 	return 0;
 }

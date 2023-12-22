@@ -3,8 +3,10 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
 
-#include "../Common/Common.cpp" 
+#include "../Common/Common.cpp"
+#include "../Common/Functions.cpp" 
 
+#include <string.h>
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -22,9 +24,13 @@ DWORD WINAPI ClientHandle(LPVOID params);
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
 
+char databuffer[BUFFER_SIZE] ;
+hash_table* ht = NULL;
+
 typedef struct pom {
 	SOCKET my_socket;
 	int idx;
+	sockaddr_in addrs;
 } pom;
 
 
@@ -38,7 +44,7 @@ int main()
 		return 1;
 	}
 
-	char databuffer[BUFFER_SIZE] ;
+	ht = init_hash_table();
 
 	sockaddr_in socketAddress;
 	memset((char*)&socketAddress, 0, sizeof(socketAddress));
@@ -141,9 +147,10 @@ int main()
 			printf("Successfully conected to Client. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 			pom params = { 
 				acceptSocket,
-				clientNum 
+				clientNum,
+				clientAddr
 			};
-			//printf(databuffer);
+
 			HANDLE thread = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
 			clientNum++;
 		}
@@ -175,11 +182,12 @@ int main()
 	return 0;
 }
 
-//thread for conection: accepting client into group, entering client in hash table and putting message into queue
+//thread for conection: accepting client into the group, entering client into the hash table and putting message into queue
 DWORD WINAPI ClientHandle(LPVOID params)
 {
 	pom p = *(pom*)params;
 	SOCKET acceptedSocket = p.my_socket;
+	sockaddr_in clientAddr = p.addrs;
 	int ind = p.idx;
 
 	FD_SET set;
@@ -212,10 +220,47 @@ DWORD WINAPI ClientHandle(LPVOID params)
 		{
 			int iResult = recv(acceptedSocket, dataBuffer, BUFFER_SIZE, 0);
 
-			if (iResult > 0)	
+			if (iResult > 0)
 			{
-				printf("Choosen group: \t");
-				printf(dataBuffer);
+				printf("Message from client: %s \n", dataBuffer);
+				if (dataBuffer[strlen(dataBuffer) - 1] == 'C')
+				{
+					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
+						dataBuffer[i] = dataBuffer[i + 1];
+
+					printf("Choosen group:\t%s\n", dataBuffer);
+					if (!hashtable_findgroup(ht, (dataBuffer))) {
+						printf("Initialization and creation of new group...\n");
+						hashtable_addgroup(ht, (dataBuffer));
+						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
+					}
+					else {
+						printf("Adding to an existing group...\n");
+						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
+					}
+
+					printf("Client '%s : %d' succesfuly added to group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port),  dataBuffer);
+
+					char messageToSend[BUFFER_SIZE];
+					strcpy_s(messageToSend, "Successfuly joined to the group!\n");
+
+					iResult = send(acceptedSocket, messageToSend, MAX_MESSAGE_SIZE, 0);
+
+					if (iResult == SOCKET_ERROR)
+					{
+						printf("send failed with error: %d\n", WSAGetLastError());
+						closesocket(acceptedSocket);
+						return 1;
+					}
+				}
+				else if (dataBuffer[strlen(dataBuffer) - 1] == 'D')
+				{
+					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
+						dataBuffer[i] = dataBuffer[i + 1];
+
+					printf("Client wants to disconnect from group: \t");
+					printf(dataBuffer);
+				}
 			}
 			else if (iResult == 0)
 			{
