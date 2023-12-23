@@ -41,6 +41,25 @@ bool list_add(list_socket* list, SOCKET sock) {
 	return true;
 }
 
+void list_print(listsocket_item* head, char* group) {
+	listsocket_item* tmp = head;
+	if (head == NULL)
+	{
+		printf("There is not any SOCKETS in the '%s'!\n", group);
+		return;
+	}printf("SOCKETS in '%s' \t", group);
+	while (tmp != NULL) {
+		if (tmp->next == NULL) {
+			printf("%d\t", tmp->socket);
+		}
+		else {
+			printf("%d\t", tmp->socket);
+		}
+		tmp = tmp->next;
+	}
+	printf("\n");
+}
+
 void init_queue(queue* q) {
 	q->head = NULL;
 	q->tail = NULL;
@@ -88,6 +107,7 @@ bool addgroup_temp(hash_table* ht, hashtable_item* item, char* group_name) {
 
 	return true;
 }
+
 bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 	bool ret = false;
@@ -118,6 +138,7 @@ bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	LeaveCriticalSection(&ht->cs);
 	return ret;
 }
+
 bool hashtable_findgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
@@ -146,4 +167,66 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 
 	LeaveCriticalSection(&ht->cs);
 	return ret;
+}
+
+bool list_remove(list_socket* list, SOCKET sock) {
+	listsocket_item* prev = list->head;
+	listsocket_item* temp = prev->next;
+
+	if (prev == NULL) {
+		printf("WARINING: List is empty.\n");
+		return false;
+	}
+	if (prev->socket == sock)
+	{
+		list->head = temp;
+		free(prev);
+		list->len--;
+		return true;
+	}
+	while (temp != NULL) {
+		if (temp->socket == sock) {
+			prev->next = temp->next;
+			free(temp);
+			list->len--;
+			return true;
+		}
+		prev = temp;
+		temp = temp->next;
+	}
+	return true;
+}
+
+bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
+	int index = hash(group_name);
+
+	EnterCriticalSection(&ht->cs);
+	hashtable_item* item = &(ht->items[index]);
+	if (item->sockets == NULL) {
+		printf("ERROR: Group doesn't exist in hash table.\n");
+		LeaveCriticalSection(&ht->cs);
+		return false;
+	}
+	bool ret = list_remove(item->sockets, socket);
+	LeaveCriticalSection(&ht->cs);
+	return ret;
+}
+
+list_socket* hashtable_getsockets(hash_table* ht, char* group_name) {
+	int index = hash(group_name);
+
+	EnterCriticalSection(&ht->cs);
+	hashtable_item* item = &(ht->items[index]);
+	if (item == NULL) {
+		printf("ERROR: Group doesn't exist in hash table.\n");
+		LeaveCriticalSection(&ht->cs);
+		return NULL;
+	}
+	while (item->next != NULL && strncmp(item->next->group_name, group_name, MAX_GROUP_NAME) != 0)
+	{
+		item = item->next;
+	}
+	LeaveCriticalSection(&ht->cs);
+
+	return item->sockets;
 }

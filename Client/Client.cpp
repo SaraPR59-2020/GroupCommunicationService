@@ -142,39 +142,36 @@ int main()
 						strcat(queueName1, "#");
 						strcat(queueName1, before);
 						strcat(queueName1, after);
-
 						strcat(queueName1, "S");
 
-						_getch();
-
 					case 2:
+						doWhile = false;
 						char queueName2[MAX_MESSAGE_LENGTH];
 						strcpy_s(queueName2, MAX_MESSAGE_LENGTH, groupName);
 						strcat(queueName2, "D");
 						//printf(queueName2);
 						printf("Sending request for disconnection...\n");
 						Disconnect(connectSocket, queueName2);
-						doWhile = false;
+						shutingDown = true;
 						break;
 					default:
 						printf("Invalid type of input, try agian...\n");
 						break;
 					}
-					printf("\n");
-				};
-				break;
+				}
 			}
+			break;
 		case 2:
+			doWhile = false;
 			printf("Shutingdown client...\n");
 			shutingDown = true;
-			doWhile = false;
 			break;
 		default:
 			printf("Invalid type of input, try agian...\n");
 			break;
 		}
 		printf("\n");
-	};
+	}
 
 	iResult = shutdown(connectSocket, SD_BOTH);
 	if (iResult == SOCKET_ERROR)
@@ -189,15 +186,16 @@ int main()
 		}
 	}
 
-	printf("Press any key o exit: ");
-	_getch();
-
+	CloseHandle(hRecv);
 	closesocket(connectSocket);
+
 	if (WSACleanup() != 0)
 	{
 		printf("WSACleanup faild with error: %d", WSAGetLastError());
 		return 1;
 	}
+	printf("Press any key o exit: ");
+	_getch();
 	return 0;
 }
 

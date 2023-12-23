@@ -2,6 +2,7 @@
 //
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "../Common/Common.cpp"
 #include "../Common/Functions.cpp" 
@@ -18,11 +19,12 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-DWORD WINAPI ClientHandle(LPVOID params);
-
-
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
+#define MAX_CLIENTS 100
+
+DWORD WINAPI ClientHandle(LPVOID params);
+HANDLE thread[MAX_CLIENTS];
 
 char databuffer[BUFFER_SIZE] ;
 hash_table* ht = NULL;
@@ -151,7 +153,7 @@ int main()
 				clientAddr
 			};
 
-			HANDLE thread = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
+			thread[clientNum] = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
 			clientNum++;
 		}
 	} while (true);
@@ -172,6 +174,9 @@ int main()
 	printf("press any key o exit: ");
 	_getch();
 
+	for (int client = 0; client < clientNum; client++)
+		CloseHandle(thread[client]);
+
 	closesocket(acceptSocket);
 	closesocket(listenSocket);
 	if (WSACleanup() != 0)
@@ -188,13 +193,13 @@ DWORD WINAPI ClientHandle(LPVOID params)
 	pom p = *(pom*)params;
 	SOCKET acceptedSocket = p.my_socket;
 	sockaddr_in clientAddr = p.addrs;
-	int ind = p.idx;
+	int client = p.idx;
 
 	FD_SET set;
 	timeval timeVal;
 	timeVal.tv_sec = 0;
 	timeVal.tv_usec = 0;
-	bool odjavljen = false;
+	bool disconnected = false;
 	int iResult;
 
 	do {
@@ -202,14 +207,14 @@ DWORD WINAPI ClientHandle(LPVOID params)
 		FD_SET(acceptedSocket, &set);
 
 		char dataBuffer[BUFFER_SIZE];
-		if (odjavljen)
+		if (disconnected)
 			break;
 		iResult = select(0, &set, NULL, NULL, &timeVal);
 		if (iResult == SOCKET_ERROR)
 		{
 			printf("select failed: %ld\n", WSAGetLastError());
 			closesocket(acceptedSocket);
-			odjavljen = true;
+			disconnected = true;
 		}
 		else if (iResult == 0)
 		{
@@ -223,6 +228,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 			if (iResult > 0)
 			{
 				printf("Message from client: %s \n", dataBuffer);
+				char delimiter[] = "#";
 				if (dataBuffer[strlen(dataBuffer) - 1] == 'C')
 				{
 					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
@@ -239,7 +245,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
 					}
 
-					printf("Client '%s : %d' succesfuly added to group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port),  dataBuffer);
+					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port),  dataBuffer);
 
 					char messageToSend[BUFFER_SIZE];
 					strcpy_s(messageToSend, "Successfuly joined to the group!\n");
@@ -258,7 +264,28 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
 						dataBuffer[i] = dataBuffer[i + 1];
 
-					printf("Client wants to disconnect from group: %s\n", dataBuffer);
+					printf("Client wants to disconnect from the group: %s\n", dataBuffer);
+					if (hashtable_removesocket(ht, dataBuffer, acceptedSocket)) {
+						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
+						list_print(lista->head, (dataBuffer));
+					}
+					disconnected = true;
+					closesocket(acceptedSocket);
+					CloseHandle(thread[client]);
+				}
+				else if (dataBuffer[strlen(dataBuffer) - 1] == 'S')
+				{
+					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
+						dataBuffer[i] = dataBuffer[i + 1];
+
+					char* group = strtok(dataBuffer, delimiter);
+					char* message = strtok(NULL, delimiter);
+					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
+				}
+				else
+				{
+					printf("Somehow unvalid message came from client...\n");
 				}
 			}
 			else if (iResult == 0)
