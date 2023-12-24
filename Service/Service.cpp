@@ -26,7 +26,7 @@
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
 
-char databuffer[BUFFER_SIZE] ;
+
 hash_table* ht = NULL;
 
 typedef struct pom {
@@ -171,8 +171,8 @@ int main()
 		return 1;
 	}
 
-	printf("press any key o exit: ");
-	_getch();
+	//printf("press any key o exit: ");
+	//_getch();
 
 	for (int client = 0; client < clientNum; client++)
 		CloseHandle(thread[client]);
@@ -187,7 +187,7 @@ int main()
 	return 0;
 }
 
-//thread for conection: accepting client into the group, entering client into the hash table and putting message into queue
+//thread for connection: accepting client into the group, entering client into the hash table and putting message into queue
 DWORD WINAPI ClientHandle(LPVOID params)
 {
 	pom p = *(pom*)params;
@@ -229,6 +229,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 			{
 				printf("Message from client: %s \n", dataBuffer);
 				char delimiter[] = "#";
+
 				if (dataBuffer[strlen(dataBuffer) - 1] == 'C')
 				{
 					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
@@ -245,7 +246,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
 					}
 
-					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port),  dataBuffer);
+					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 
 					char messageToSend[BUFFER_SIZE];
 					strcpy_s(messageToSend, "Successfuly joined to the group!\n");
@@ -282,10 +283,12 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					char* group = strtok(dataBuffer, delimiter);
 					char* message = strtok(NULL, delimiter);
 					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
+
+					enqueue(getqueue(ht, (group)), (message));
 				}
 				else
 				{
-					printf("Somehow unvalid message came from client...\n");
+					printf("Somehow invalid message came from client...\n");
 				}
 			}
 			else if (iResult == 0)

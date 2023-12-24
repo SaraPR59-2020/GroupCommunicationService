@@ -75,3 +75,7 @@ bool hashtable_findgroup(hash_table* ht, char* group_name);
 //for deconnection
 bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket);
 list_socket* hashtable_getsockets(hash_table* ht, char* group_name);
+
+//adding message to queue
+bool enqueue(queue* q, char* message);
+queue* getqueue(hash_table* ht, char* group_name);

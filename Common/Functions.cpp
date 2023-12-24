@@ -50,10 +50,10 @@ void list_print(listsocket_item* head, char* group) {
 	}printf("SOCKETS in '%s' \t", group);
 	while (tmp != NULL) {
 		if (tmp->next == NULL) {
-			printf("%d\t", tmp->socket);
+			printf("%d\t", (int)tmp->socket);
 		}
 		else {
-			printf("%d\t", tmp->socket);
+			printf("%d\t", (int)tmp->socket);
 		}
 		tmp = tmp->next;
 	}
@@ -229,4 +229,49 @@ list_socket* hashtable_getsockets(hash_table* ht, char* group_name) {
 	LeaveCriticalSection(&ht->cs);
 
 	return item->sockets;
+}
+
+queue* getqueue(hash_table* ht, char* group_name) {
+	int index = hash(group_name);
+
+	EnterCriticalSection(&ht->cs);
+	hashtable_item* item = &(ht->items[index]);
+	if (item == NULL) {
+		printf("ERROR: Group doesn't exist in hash table.\n");
+		LeaveCriticalSection(&ht->cs);
+		return NULL;
+	}
+	while (item->next != NULL && strncmp(item->next->group_name, group_name, MAX_GROUP_NAME) != 0)
+	{
+		item = item->next;
+	}
+	LeaveCriticalSection(&ht->cs);
+
+	return item->group_queue;
+}
+
+
+bool enqueue(queue* q, char* message) {
+	EnterCriticalSection(&(q->cs));
+	node* new_node = (node*)malloc(sizeof(node));
+	new_node->message = (char*)malloc(sizeof(char) * MAX_MESSAGE_SIZE);
+	new_node->next = NULL;
+	if (new_node == NULL) {
+		LeaveCriticalSection(&(q->cs));
+		return false;
+	}
+	strcpy_s(new_node->message, MAX_MESSAGE_SIZE, message);
+	new_node->next = NULL;
+
+	if (q->tail != NULL) {
+		q->tail->next = new_node;
+	}
+
+	q->tail = new_node;
+
+	if (q->head == NULL) { 
+		q->head = new_node;
+	}
+	LeaveCriticalSection(&(q->cs));
+	return true;
 }

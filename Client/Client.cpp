@@ -129,21 +129,33 @@ int main()
 					switch (option - 48) {
 					case 1:
 						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
-						char queueName1[MAX_MESSAGE_LENGTH];
+						char message[MAX_MESSAGE_LENGTH];
 						char input[MAX_MESSAGE_LENGTH];
 						gets_s(input, MAX_MESSAGE_LENGTH - 1);
 
-						
-						char* before, * after;
-						before = strtok(input, delimiter);
-						after = strtok(NULL, delimiter);
+						if (strpbrk(input, "#") != NULL)
+						{
+							char* before, * after;
+							before = strtok(input, delimiter);
+							after = strtok(NULL, delimiter);
 
-						strcpy(queueName1, groupName);
-						strcat(queueName1, "#");
-						strcat(queueName1, before);
-						strcat(queueName1, after);
-						strcat(queueName1, "S");
+							strcpy(message, groupName);
+							strcat(message, "#");
+							strcat(message, before);
+							strcat(message, after);
+							strcat(message, "S");
+						}
+						else
+						{
+							strcpy(message, groupName);
+							strcat(message, "#");
+							strcat(message, input);
+							strcat(message, "S");
+						}
 
+						printf("Sending message '%s' to service...\n", message);
+						SendMessageToPass(connectSocket, message);
+						break;
 					case 2:
 						doWhile = false;
 						char queueName2[MAX_MESSAGE_LENGTH];
@@ -194,8 +206,6 @@ int main()
 		printf("WSACleanup faild with error: %d", WSAGetLastError());
 		return 1;
 	}
-	printf("Press any key o exit: ");
-	_getch();
 	return 0;
 }
 
@@ -225,7 +235,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			serverOut = true;
 
 			printf("select failed: %ld\n", WSAGetLastError());
-			printf("the server probably disconnected\n");
+			printf("Service was probably closed\n");
 			SafeCloseHandle(hRecv);
 			return 0;
 		}
@@ -262,7 +272,6 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 					printf("News from service: %s\n", dataBuffer);
 				}
 				else {
-					// there was an error during recv
 					printf("recv failed with error: %d\n", WSAGetLastError());
 					closesocket(connectSocket);
 				}
