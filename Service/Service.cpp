@@ -4,9 +4,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "../Common/Common.cpp"
-#include "../Common/Functions.cpp" 
-
 #include <string.h>
 #include <windows.h>
 #include <winsock2.h>
@@ -14,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "conio.h"
+#include "Functions.h"
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -101,7 +99,7 @@ int main()
 
 	SOCKET acceptSocket = INVALID_SOCKET;
 
-	printf("Server socket is set to listening mode. Waiting for new connection.\n");
+	printf("Server socket is set to listening mode. Waiting for new connection.\n\n\n");
 
 	int clientNum = 0;
 
@@ -146,7 +144,7 @@ int main()
 				}
 				return 1;
 			}
-			printf("Successfully conected to Client. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+			printf("\t\tSuccessfully conected to Client. Client address: %s : %d\n\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 			pom params = { 
 				acceptSocket,
 				clientNum,
@@ -244,9 +242,11 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					else {
 						printf("Adding to an existing group...\n");
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
+						
 					}
-
 					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+					list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
+					list_print(lista->head, (dataBuffer));
 
 					char messageToSend[BUFFER_SIZE];
 					strcpy_s(messageToSend, "Successfuly joined to the group!\n");
@@ -302,6 +302,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				closesocket(acceptedSocket);
 			}
 		}
+		printf("\n\n");
 	} while (true);
 	printf("The client has been closed\n");
 	return 0;

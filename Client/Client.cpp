@@ -4,8 +4,6 @@
 #define SafeCloseHandle(handle) if(handle) CloseHandle(handle);
 #define WIN32_LEAN_AND_MEAN
 
-#include "../Common/Common.cpp" 
-
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -21,14 +19,18 @@
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
+#define MAX_MESSAGE_LENGTH 256
 
 DWORD WINAPI ThreadRECV(LPVOID lpParam);
+void Connect(char* queueName);
+void Disconnect(char* queueName);
+void SendMessageToPass(char* message);
 
+SOCKET connectSocket;
 char groupName[MAX_MESSAGE_LENGTH];
 HANDLE hRecv;
 int messageLen;
 bool shutingDown = false;
-
 
 int main()
 {
@@ -40,7 +42,6 @@ int main()
 	}
 	char databuffer[BUFFER_SIZE];
 
-	SOCKET connectSocket;
 	connectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (connectSocket == INVALID_SOCKET)
 	{
@@ -74,7 +75,7 @@ int main()
 	}
 	else
 	{
-		printf("Succasfuly conected to service! \n");
+		printf("Succasfuly conected to service! \n\n\n");
 	}
 	
 	//non-blocking mode
@@ -106,7 +107,7 @@ int main()
 			char queueName[MAX_MESSAGE_LENGTH];
 			gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
 			strcpy_s(groupName, MAX_MESSAGE_LENGTH, queueName);
-			strcat(queueName, "C");
+			
 			//printf(queueName);
 			messageLen = strlen(queueName);
 			if (messageLen <= 2) {
@@ -115,7 +116,7 @@ int main()
 			}
 			else
 			{
-				Connect(connectSocket, queueName);
+				Connect(queueName);
 				while (doWhile)
 				{
 					int option = 0;
@@ -154,16 +155,11 @@ int main()
 						}
 
 						printf("Sending message '%s' to service...\n", message);
-						SendMessageToPass(connectSocket, message);
+						SendMessageToPass(message);
 						break;
 					case 2:
 						doWhile = false;
-						char queueName2[MAX_MESSAGE_LENGTH];
-						strcpy_s(queueName2, MAX_MESSAGE_LENGTH, groupName);
-						strcat(queueName2, "D");
-						//printf(queueName2);
-						printf("Sending request for disconnection...\n");
-						Disconnect(connectSocket, queueName2);
+						Disconnect(groupName);
 						shutingDown = true;
 						break;
 					default:
@@ -209,11 +205,111 @@ int main()
 	return 0;
 }
 
+
+// TODO: This is an example of a library function
+void Connect(char* queueName) {
+	FD_SET set;
+	timeval timeVal;
+	FD_ZERO(&set);
+	FD_SET(connectSocket, &set);
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	char message[MAX_MESSAGE_LENGTH];
+	strcpy_s(message, queueName);
+	strcat(message, "C");
+
+	int iResult = select(0, NULL, &set, NULL, &timeVal);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Error in select: %ld\n", WSAGetLastError());
+	}
+	else if (iResult == 0)
+	{
+		Sleep(1000);
+	}
+	else if (iResult > 0)
+	{
+		iResult = send(connectSocket, message, strlen(message) + 1, 0);
+	}
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+}
+void Disconnect(char* queueName) {
+	FD_SET set;
+	timeval timeVal;
+	FD_ZERO(&set);
+	FD_SET(connectSocket, &set);
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	char message[MAX_MESSAGE_LENGTH];
+	strcpy_s(message, queueName);
+	strcat(message, "D");
+
+	int iResult = select(0, NULL, &set, NULL, &timeVal);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Error in select: %ld\n", WSAGetLastError());
+	}
+	else if (iResult == 0)
+	{
+		Sleep(1000);
+	}
+	else if (iResult > 0)
+	{
+		iResult = send(connectSocket, message, strlen(message) + 1, 0);
+	}
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+}
+void SendMessageToPass(char* message) {
+	FD_SET set;
+	timeval timeVal;
+	FD_ZERO(&set);
+	FD_SET(connectSocket, &set);
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	int iResult = select(0, NULL, &set, NULL, &timeVal);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Error in select: %ld\n", WSAGetLastError());
+	}
+	else if (iResult == 0)
+	{
+		Sleep(1000);
+	}
+	else if (iResult > 0)
+	{
+		printf("%s\n", message);
+		iResult = send(connectSocket, message, strlen(message) + 1, 0);
+	}
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+}
+
+
 //thread for communication: accepts news from service 
 DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 
 	int iResult;
-	SOCKET connectSocket = *(SOCKET*)lpParam;
+	SOCKET connectSocketRECV = *(SOCKET*)lpParam;
 	char dataBuffer[BUFFER_SIZE];
 
 	FD_SET set;
@@ -226,7 +322,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 	while (shutingDown != true) {
 
 		FD_ZERO(&set);
-		FD_SET(connectSocket, &set);
+		FD_SET(connectSocketRECV, &set);
 
 		iResult = select(0, &set, NULL, NULL, &timeVal);
 
@@ -252,7 +348,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			timeVal.tv_sec = 0;
 			timeVal.tv_usec = 0;
 			FD_ZERO(&set);
-			FD_SET(connectSocket, &set);
+			FD_SET(connectSocketRECV, &set);
 
 			iResult = select(0, &set, NULL, NULL, &timeVal);
 			if (iResult == SOCKET_ERROR)
@@ -266,14 +362,14 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			}
 			else if (iResult > 0)
 			{
-				iResult = recv(connectSocket, dataBuffer, BUFFER_SIZE, 0);
+				iResult = recv(connectSocketRECV, dataBuffer, BUFFER_SIZE, 0);
 
 				if (iResult > 0) {
 					printf("News from service: %s\n", dataBuffer);
 				}
 				else {
 					printf("recv failed with error: %d\n", WSAGetLastError());
-					closesocket(connectSocket);
+					closesocket(connectSocketRECV);
 				}
 			}
 		}

@@ -1,6 +1,6 @@
-#include "framework.h"
-#include "pch.h"
-#include "functions.h"
+#include "Functions.h"
+
+#define WIN32_LEAN_AND_MEAN 
 
 list_socket* init_list() {
 	list_socket* socks = (list_socket*)malloc(sizeof(list_socket));
@@ -269,7 +269,7 @@ bool enqueue(queue* q, char* message) {
 
 	q->tail = new_node;
 
-	if (q->head == NULL) { 
+	if (q->head == NULL) {
 		q->head = new_node;
 	}
 	LeaveCriticalSection(&(q->cs));
