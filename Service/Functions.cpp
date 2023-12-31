@@ -275,3 +275,21 @@ bool enqueue(queue* q, char* message) {
 	LeaveCriticalSection(&(q->cs));
 	return true;
 }
+char* dequeue(queue* q) {
+	EnterCriticalSection(&(q->cs));
+	if (q->head == NULL) {
+		LeaveCriticalSection(&(q->cs));
+		return (char*)QUEUE_EMPTY;
+	}
+	node* tmp = q->head;
+	char* result = q->head->message;
+	q->head = q->head->next;
+
+	if (q->head == NULL) {
+		q->tail = NULL;
+	}
+
+	free(tmp);
+	LeaveCriticalSection(&(q->cs));
+	return result;
+}

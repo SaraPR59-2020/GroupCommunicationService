@@ -13,7 +13,6 @@
 #define QUEUE_EMPTY "QUEUE IS EMPTY"
 #define MAX_MESSAGE_SIZE 256
 
-
 #define MAX_GROUP_NAME 256
 #define HASH_TABLE_SIZE 10
 #define MAX_SOCKETS_IN_GROUP 10
@@ -71,7 +70,6 @@
 	bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket);
 	bool hashtable_findgroup(hash_table* ht, char* group_name);
 
-
 	//for deconnection
 	bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket);
 	list_socket* hashtable_getsockets(hash_table* ht, char* group_name);
@@ -79,4 +77,4 @@
 	//adding message to queue
 	bool enqueue(queue* q, char* message);
 	queue* getqueue(hash_table* ht, char* group_name);
-
+	char* dequeue(queue* q);

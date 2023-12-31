@@ -20,10 +20,13 @@
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
 #define MAX_CLIENTS 100
+#define MAX_MESSAGE_LENGTH 256
 
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
 
+DWORD WINAPI SendMessageFromQueue(LPVOID lpParam);
+HANDLE threadSendMess;
 
 hash_table* ht = NULL;
 
@@ -284,6 +287,8 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					char* message = strtok(NULL, delimiter);
 					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
 
+					threadSendMess = CreateThread(NULL, NULL, &SendMessageFromQueue, group, NULL, NULL);
+
 					enqueue(getqueue(ht, (group)), (message));
 				}
 				else
@@ -305,6 +310,54 @@ DWORD WINAPI ClientHandle(LPVOID params)
 		printf("\n\n");
 	} while (true);
 	printf("The client has been closed\n");
+	return 0;
+}
+
+DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
+	char* group = (char*)lpParam;
+	char* pom = (char*)malloc(sizeof(char) * MAX_MESSAGE_LENGTH);
+	queue* groupQueue = getqueue(ht, group);
+	list_socket* list = hashtable_getsockets(ht, group);
+	int len = list->len;
+	listsocket_item* socketsInList = list->head;
+
+	list_print(list->head, group);
+
+	do {
+		if (groupQueue->head != NULL) {
+			pom = dequeue(groupQueue);
+			while (socketsInList != NULL) {
+				if (socketsInList->next == NULL) {
+					int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
+
+					if (iResult == SOCKET_ERROR)
+					{
+						printf("send failed with error: %d\n", WSAGetLastError());
+						closesocket(socketsInList->socket);
+						return 1;
+					}
+				}
+				else {
+					int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
+
+					if (iResult == SOCKET_ERROR)
+					{
+						printf("send failed with error: %d\n", WSAGetLastError());
+						closesocket(socketsInList->socket);
+						return 1;
+					}
+				}
+				socketsInList = socketsInList->next;
+
+			}
+			socketsInList = list->head;
+		}
+		else {
+			Sleep(5000);
+			continue;
+		}
+	} while (1);
+	free(pom);
 	return 0;
 }
 

@@ -205,7 +205,6 @@ int main()
 	return 0;
 }
 
-
 // TODO: This is an example of a library function
 void Connect(char* queueName) {
 	FD_SET set;
@@ -304,7 +303,6 @@ void SendMessageToPass(char* message) {
 	}
 }
 
-
 //thread for communication: accepts news from service 
 DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 
@@ -376,7 +374,6 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 	}
 	return 0;
 }
-
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
 // Debug program: F5 or Debug > Start Debugging menu
 
