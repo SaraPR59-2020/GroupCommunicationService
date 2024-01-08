@@ -327,28 +327,15 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 		if (groupQueue->head != NULL) {
 			pom = dequeue(groupQueue);
 			while (socketsInList != NULL) {
-				if (socketsInList->next == NULL) {
-					int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
+				int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
 
-					if (iResult == SOCKET_ERROR)
-					{
-						printf("send failed with error: %d\n", WSAGetLastError());
-						closesocket(socketsInList->socket);
-						return 1;
-					}
-				}
-				else {
-					int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
-
-					if (iResult == SOCKET_ERROR)
-					{
-						printf("send failed with error: %d\n", WSAGetLastError());
-						closesocket(socketsInList->socket);
-						return 1;
-					}
+				if (iResult == SOCKET_ERROR)
+				{
+					printf("send failed with error: %d\n", WSAGetLastError());
+					closesocket(socketsInList->socket);
+					return 1;
 				}
 				socketsInList = socketsInList->next;
-
 			}
 			socketsInList = list->head;
 		}

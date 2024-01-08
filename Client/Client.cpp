@@ -95,7 +95,7 @@ int main()
 	while(doWhile)
 	{
 		int option = 0;
-		printf("\t\t\t\tGROUP COMMUNICATION SERVIS\n");
+		printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
 		printf("\t1. ENTER GROUP\n");
 		printf("\t2. EXIT\n");
 		printf("\n");
@@ -120,20 +120,20 @@ int main()
 				while (doWhile)
 				{
 					int option = 0;
-					printf("\t\t\t\tGROUP COMMUNICATION SERVIS\n");
+					printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
 					printf("\t1. SEND MESSAGE TO THE GROUP\n");
 					printf("\t2. EXIT GROUP AND SERVICE\n");
 					printf("\n");
 					option = _getch();
 					char delimiter[] = "#";
-
 					switch (option - 48) {
 					case 1:
 						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
-						char message[MAX_MESSAGE_LENGTH];
 						char input[MAX_MESSAGE_LENGTH];
 						gets_s(input, MAX_MESSAGE_LENGTH - 1);
 
+						
+						char message[MAX_MESSAGE_LENGTH];
 						if (strpbrk(input, "#") != NULL)
 						{
 							char* before, * after;
@@ -153,7 +153,6 @@ int main()
 							strcat(message, input);
 							strcat(message, "S");
 						}
-
 						printf("Sending message '%s' to service...\n", message);
 						SendMessageToPass(message);
 						break;
@@ -272,6 +271,7 @@ void Disconnect(char* queueName) {
 		WSACleanup();
 	}
 }
+
 void SendMessageToPass(char* message) {
 	FD_SET set;
 	timeval timeVal;
