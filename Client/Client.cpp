@@ -1,7 +1,6 @@
 // Client.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#define SafeCloseHandle(handle) if(handle) CloseHandle(handle);
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
@@ -17,7 +16,7 @@
 #pragma warning (disable: 4996)
 
 #define SERVER_IP_ADDRESS "127.0.0.1"
-#define SERVER_PORT 27016
+#define SERVER_PORT 33033
 #define BUFFER_SIZE 256
 #define MAX_MESSAGE_LENGTH 256
 
@@ -192,7 +191,6 @@ int main()
 			return 1;
 		}
 	}
-
 	CloseHandle(hRecv);
 	closesocket(connectSocket);
 
@@ -203,8 +201,6 @@ int main()
 	}
 	return 0;
 }
-
-// TODO: This is an example of a library function
 void Connect(char* queueName) {
 	FD_SET set;
 	timeval timeVal;
@@ -271,7 +267,6 @@ void Disconnect(char* queueName) {
 		WSACleanup();
 	}
 }
-
 void SendMessageToPass(char* message) {
 	FD_SET set;
 	timeval timeVal;
@@ -291,7 +286,7 @@ void SendMessageToPass(char* message) {
 	}
 	else if (iResult > 0)
 	{
-		printf("%s\n", message);
+		//printf("%s\n", message);
 		iResult = send(connectSocket, message, strlen(message) + 1, 0);
 	}
 
@@ -302,7 +297,6 @@ void SendMessageToPass(char* message) {
 		WSACleanup();
 	}
 }
-
 //thread for communication: accepts news from service 
 DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 
@@ -324,51 +318,25 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 
 		iResult = select(0, &set, NULL, NULL, &timeVal);
 
-		if (iResult == SOCKET_ERROR)
-		{
+		if (iResult == SOCKET_ERROR) {
 			serverOut = true;
-
 			printf("select failed: %ld\n", WSAGetLastError());
 			printf("Service was probably closed\n");
-			SafeCloseHandle(hRecv);
+			CloseHandle(hRecv);
 			return 0;
 		}
-
-		if (iResult == 0)
-		{
+		else if (iResult == 0) {
 			Sleep(1000);
 			continue;
 		}
-		if (iResult > 0) {
-
-			FD_SET set;
-			timeval timeVal;
-			timeVal.tv_sec = 0;
-			timeVal.tv_usec = 0;
-			FD_ZERO(&set);
-			FD_SET(connectSocketRECV, &set);
-
-			iResult = select(0, &set, NULL, NULL, &timeVal);
-			if (iResult == SOCKET_ERROR)
-			{
-				printf("select failed in ReceiveFunction: %ld\n", WSAGetLastError());
+		else if (iResult > 0) {
+			iResult = recv(connectSocketRECV, dataBuffer, BUFFER_SIZE, 0);
+			if (iResult > 0) {
+				printf("News from service: %s\n", dataBuffer);
 			}
-			else if (iResult == 0)
-			{
-				Sleep(1000);
-				continue;
-			}
-			else if (iResult > 0)
-			{
-				iResult = recv(connectSocketRECV, dataBuffer, BUFFER_SIZE, 0);
-
-				if (iResult > 0) {
-					printf("News from service: %s\n", dataBuffer);
-				}
-				else {
-					printf("recv failed with error: %d\n", WSAGetLastError());
-					closesocket(connectSocketRECV);
-				}
+			else {
+				printf("recv failed with error: %d\n", WSAGetLastError());
+				closesocket(connectSocketRECV);
 			}
 		}
 	}

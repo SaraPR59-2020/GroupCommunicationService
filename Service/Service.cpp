@@ -17,7 +17,7 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-#define SERVER_PORT 27016
+#define SERVER_PORT 33033
 #define BUFFER_SIZE 256
 #define MAX_CLIENTS 100
 #define MAX_MESSAGE_LENGTH 256
@@ -313,6 +313,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 	return 0;
 }
 
+//thread for group: checking if there is messages in the queue and sending it 
 DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	char* group = (char*)lpParam;
 	char* pom = (char*)malloc(sizeof(char) * MAX_MESSAGE_LENGTH);
