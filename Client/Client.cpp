@@ -6,9 +6,12 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <string>
 #include <stdlib.h>
 #include <stdio.h>
 #include "conio.h"
+#include <charconv>
+using namespace std;
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -122,9 +125,12 @@ int main()
 					printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
 					printf("\t1. SEND MESSAGE TO THE GROUP\n");
 					printf("\t2. EXIT GROUP AND SERVICE\n");
+					printf("\t3. (ADVANCE - ONLY FOR TESTING) SEND RANDOM NUMBER (I = 500 - 1000) OF DEFAULT MESSAGES (messageI)\n");
 					printf("\n");
 					option = _getch();
 					char delimiter[] = "#";
+					char def[] = "default";
+					int numOfMess = rand() % 500 + 500;
 					switch (option - 48) {
 					case 1:
 						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
@@ -159,6 +165,21 @@ int main()
 						doWhile = false;
 						Disconnect(groupName);
 						shutingDown = true;
+						break;
+					case 3:
+						char defaultMess[MAX_MESSAGE_LENGTH];
+						strcpy(defaultMess, groupName);
+						strcat(defaultMess, "#");
+						strcat(defaultMess, def);
+						strcat(defaultMess, "S");
+						printf("Sending '%d' default messages to service...\n", numOfMess);
+						
+						for (int i = 0; i < numOfMess; i++)
+						{
+							printf("%d. ", i + 1);
+							printf("%s\n", defaultMess);
+							SendMessageToPass(defaultMess);
+						}
 						break;
 					default:
 						printf("Invalid type of input, try agian...\n");

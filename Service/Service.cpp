@@ -228,15 +228,15 @@ DWORD WINAPI ClientHandle(LPVOID params)
 
 			if (iResult > 0)
 			{
-				printf("Message from client: %s \n", dataBuffer);
+				printf("\nMessage from client: %s \n", dataBuffer);
 				char delimiter[] = "#";
+				char option = dataBuffer[strlen(dataBuffer) - 1];
+				for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
+					dataBuffer[i] = dataBuffer[i + 1];
 
-				if (dataBuffer[strlen(dataBuffer) - 1] == 'C')
+				if (option == 'C')
 				{
-					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
-						dataBuffer[i] = dataBuffer[i + 1];
-
-					printf("Choosen group:\t%s\n", dataBuffer);
+					printf("\nChoosen group:\t%s\n", dataBuffer);
 					if (!hashtable_findgroup(ht, (dataBuffer))) {
 						printf("Initialization and creation of new group...\n");
 						hashtable_addgroup(ht, (dataBuffer));
@@ -263,12 +263,9 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						return 1;
 					}
 				}
-				else if (dataBuffer[strlen(dataBuffer) - 1] == 'D')
+				else if (option == 'D')
 				{
-					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
-						dataBuffer[i] = dataBuffer[i + 1];
-
-					printf("Client wants to disconnect from the group: %s\n", dataBuffer);
+					printf("\nClient wants to disconnect from the group: %s\n", dataBuffer);
 					if (hashtable_removesocket(ht, dataBuffer, acceptedSocket)) {
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
@@ -278,23 +275,21 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					closesocket(acceptedSocket);
 					CloseHandle(thread[client]);
 				}
-				else if (dataBuffer[strlen(dataBuffer) - 1] == 'S')
+				else if (option == 'S')
 				{
-					for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
-						dataBuffer[i] = dataBuffer[i + 1];
-
-					char* group = strtok(dataBuffer, delimiter);
-					char* message = strtok(NULL, delimiter);
-					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
-
+					char* message,* group;
+					group = strtok(dataBuffer, delimiter);
+					message = strtok(NULL, delimiter);
+					printf("\nClient wants to send message: %s\t to the group: %s\n", message, group);
+					
 					threadSendMess = CreateThread(NULL, NULL, &SendMessageFromQueue, group, NULL, NULL);
-
 					enqueue(getqueue(ht, (group)), (message));
 				}
 				else
 				{
 					printf("Somehow invalid message came from client...\n");
 				}
+				printf("\n");
 			}
 			else if (iResult == 0)
 			{
@@ -307,7 +302,6 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				closesocket(acceptedSocket);
 			}
 		}
-		printf("\n\n");
 	} while (true);
 	printf("The client has been closed\n");
 	return 0;
