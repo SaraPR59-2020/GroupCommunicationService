@@ -218,8 +218,9 @@ int main()
 			return 1;
 		}
 	}
-	
+	WaitForSingleObject(hMutex, INFINITE);	//wait for thread to finish and then close handle
 	CloseHandle(hMutex);
+	WaitForSingleObject(hRecv, INFINITE);
 	CloseHandle(hRecv);
 	closesocket(connectSocket);
 

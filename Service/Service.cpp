@@ -159,6 +159,24 @@ int main()
 		}
 	} while (true);
 
+	WaitForMultipleObjects(clientNum, thread, TRUE, INFINITE);
+	for (int client = 0; client < clientNum; client++)
+		CloseHandle(thread[client]);
+
+	iResult = shutdown(acceptSocket, SD_BOTH);
+		if (iResult == SOCKET_ERROR)
+		{
+			printf("'shutdown' faild with error: %d\n", WSAGetLastError());
+			closesocket(acceptSocket);
+			if (WSACleanup() != 0)
+			{
+				printf("WSACleanup faild with error: %d\n", WSAGetLastError());
+				return 1;
+			}
+			return 1;
+		}
+	closesocket(acceptSocket);
+
 	iResult = shutdown(acceptSocket, SD_BOTH);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -171,15 +189,8 @@ int main()
 		}
 		return 1;
 	}
-
-	//printf("press any key o exit: ");
-	//_getch();
-
-	for (int client = 0; client < clientNum; client++)
-		CloseHandle(thread[client]);
-
-	closesocket(acceptSocket);
 	closesocket(listenSocket);
+
 	if (WSACleanup() != 0)
 	{
 		printf("WSACleanup faild with error: %d\n", WSAGetLastError());
