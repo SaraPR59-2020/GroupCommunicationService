@@ -21,12 +21,14 @@
 #define BUFFER_SIZE 256
 #define MAX_CLIENTS 100
 #define MAX_MESSAGE_LENGTH 256
+#define MAX_GROUPS 10
 
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
 
 DWORD WINAPI SendMessageFromQueue(LPVOID lpParam);
-HANDLE threadSendMess;
+HANDLE threadSendMess[MAX_GROUPS];
+int groupNum = 0;
 
 hash_table* ht = NULL;
 
@@ -163,6 +165,10 @@ int main()
 	for (int client = 0; client < clientNum; client++)
 		CloseHandle(thread[client]);
 
+	WaitForMultipleObjects(groupNum, threadSendMess, TRUE, INFINITE);
+	for (int group = 0; group < groupNum; group++)
+		CloseHandle(threadSendMess[group]);
+
 	iResult = shutdown(acceptSocket, SD_BOTH);
 		if (iResult == SOCKET_ERROR)
 		{
@@ -177,7 +183,7 @@ int main()
 		}
 	closesocket(acceptSocket);
 
-	iResult = shutdown(acceptSocket, SD_BOTH);
+	iResult = shutdown(listenSocket, SD_BOTH);
 	if (iResult == SOCKET_ERROR)
 	{
 		printf("'shutdown' faild with error: %d\n", WSAGetLastError());
@@ -252,7 +258,8 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						printf("Initialization and creation of new group '%s'...\n", dataBuffer);
 						hashtable_addgroup(ht, (dataBuffer));
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
-						threadSendMess = CreateThread(NULL, NULL, &SendMessageFromQueue, dataBuffer, NULL, NULL);
+						threadSendMess[groupNum] = CreateThread(NULL, NULL, &SendMessageFromQueue, dataBuffer, NULL, NULL);
+						groupNum++;
 					}
 					else {
 						printf("Adding to an existing group group '%s'...\n", dataBuffer);
@@ -324,8 +331,6 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	queue* groupQueue = getqueue(ht, group);
 	list_socket* list = hashtable_getsockets(ht, group);
 	listsocket_item* socketsInList = list->head;
-
-	//list_print(list->head, group);
 
 	do {
 		if (groupQueue->head != NULL) {
