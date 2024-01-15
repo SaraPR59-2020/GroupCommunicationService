@@ -228,7 +228,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 
 			if (iResult > 0)
 			{
-				printf("\nMessage from client: %s \n", dataBuffer);
+				printf("\nMessage from client '%s : %d' : %s \n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 				char delimiter[] = "#";
 				char option = dataBuffer[strlen(dataBuffer) - 1];
 				for (int i = strlen(dataBuffer) - 1; i < strlen(dataBuffer); ++i)
@@ -236,14 +236,15 @@ DWORD WINAPI ClientHandle(LPVOID params)
 
 				if (option == 'C')
 				{
-					printf("\nChoosen group:\t%s\n", dataBuffer);
+					printf("\nChoosen group of client '%s : %d' :\t%s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					if (!hashtable_findgroup(ht, (dataBuffer))) {
-						printf("Initialization and creation of new group...\n");
+						printf("Initialization and creation of new group '%s'...\n", dataBuffer);
 						hashtable_addgroup(ht, (dataBuffer));
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
+						threadSendMess = CreateThread(NULL, NULL, &SendMessageFromQueue, dataBuffer, NULL, NULL);
 					}
 					else {
-						printf("Adding to an existing group...\n");
+						printf("Adding to an existing group group '%s'...\n", dataBuffer);
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
 						
 					}
@@ -265,7 +266,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				}
 				else if (option == 'D')
 				{
-					printf("\nClient wants to disconnect from the group: %s\n", dataBuffer);
+					printf("\nClient '%s : %d' wants to disconnect from the group: '%s'\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					if (hashtable_removesocket(ht, dataBuffer, acceptedSocket)) {
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
@@ -280,9 +281,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					char* message,* group;
 					group = strtok(dataBuffer, delimiter);
 					message = strtok(NULL, delimiter);
-					printf("\nClient wants to send message: %s\t to the group: %s\n", message, group);
-					
-					threadSendMess = CreateThread(NULL, NULL, &SendMessageFromQueue, group, NULL, NULL);
+					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
 					enqueue(getqueue(ht, (group)), (message));
 				}
 				else
@@ -313,10 +312,9 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	char* pom = (char*)malloc(sizeof(char) * MAX_MESSAGE_LENGTH);
 	queue* groupQueue = getqueue(ht, group);
 	list_socket* list = hashtable_getsockets(ht, group);
-	int len = list->len;
 	listsocket_item* socketsInList = list->head;
 
-	list_print(list->head, group);
+	//list_print(list->head, group);
 
 	do {
 		if (groupQueue->head != NULL) {

@@ -9,8 +9,10 @@
 #include <string>
 #include <stdlib.h>
 #include <stdio.h>
+#include <cstdlib>
 #include "conio.h"
 #include <charconv>
+#include <mutex>
 using namespace std;
 
 #pragma comment (lib, "Ws2_32.lib")
@@ -31,6 +33,7 @@ void SendMessageToPass(char* message);
 SOCKET connectSocket;
 char groupName[MAX_MESSAGE_LENGTH];
 HANDLE hRecv;
+HANDLE hMutex;
 int messageLen;
 bool shutingDown = false;
 
@@ -89,6 +92,7 @@ int main()
 		return false;
 	}
 
+	hMutex = CreateMutex(NULL, FALSE, NULL);
 	//thread for news
 	hRecv = CreateThread(NULL, NULL, &ThreadRECV, &connectSocket, NULL, NULL);
 
@@ -135,9 +139,10 @@ int main()
 					case 1:
 						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
 						char input[MAX_MESSAGE_LENGTH];
+						WaitForSingleObject(hMutex, INFINITE);
 						gets_s(input, MAX_MESSAGE_LENGTH - 1);
+						ReleaseMutex(hMutex);
 
-						
 						char message[MAX_MESSAGE_LENGTH];
 						if (strpbrk(input, "#") != NULL)
 						{
@@ -179,6 +184,7 @@ int main()
 							printf("%d. ", i + 1);
 							printf("%s\n", defaultMess);
 							SendMessageToPass(defaultMess);
+							Sleep(1500);	//wait for 1.5 seconds
 						}
 						break;
 					default:
@@ -212,6 +218,8 @@ int main()
 			return 1;
 		}
 	}
+	
+	CloseHandle(hMutex);
 	CloseHandle(hRecv);
 	closesocket(connectSocket);
 
@@ -296,6 +304,7 @@ void SendMessageToPass(char* message) {
 	timeVal.tv_sec = 0;
 	timeVal.tv_usec = 0;
 
+
 	int iResult = select(0, NULL, &set, NULL, &timeVal);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -351,6 +360,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			continue;
 		}
 		else if (iResult > 0) {
+			WaitForSingleObject(hMutex, INFINITE);
 			iResult = recv(connectSocketRECV, dataBuffer, BUFFER_SIZE, 0);
 			if (iResult > 0) {
 				printf("News from service: %s\n", dataBuffer);
@@ -359,6 +369,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 				printf("recv failed with error: %d\n", WSAGetLastError());
 				closesocket(connectSocketRECV);
 			}
+			ReleaseMutex(hMutex);
 		}
 	}
 	return 0;
