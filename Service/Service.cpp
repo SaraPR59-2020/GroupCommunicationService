@@ -23,6 +23,10 @@
 #define MAX_MESSAGE_LENGTH 256
 #define MAX_GROUPS 10
 
+DWORD WINAPI ExitThreadFunc(LPVOID lpParam);
+HANDLE threadShutDown;
+bool shutDownService = false; 
+
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
 
@@ -113,7 +117,15 @@ int main()
 	timeVal.tv_sec = 1;
 	timeVal.tv_usec = 0;
 
-	do
+	//thread for exit
+	threadShutDown = CreateThread(NULL, 0, &ExitThreadFunc, NULL, 0, NULL);
+	if (threadShutDown == NULL)
+	{
+		printf("Error creating exit thread: %d\n", GetLastError());
+		return 1;
+	}
+
+	while(!shutDownService)
 	{
 		FD_ZERO(&set);
 		FD_SET(listenSocket, &set);
@@ -159,11 +171,10 @@ int main()
 			thread[clientNum] = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
 			clientNum++;
 		}
-	} while (true);
+	}
 
-	WaitForMultipleObjects(clientNum, thread, TRUE, INFINITE);
-	for (int client = 0; client < clientNum; client++)
-		CloseHandle(thread[client]);
+	WaitForSingleObject(threadShutDown, INFINITE);
+	CloseHandle(threadShutDown);
 
 	WaitForMultipleObjects(groupNum, threadSendMess, TRUE, INFINITE);
 	for (int group = 0; group < groupNum; group++)
@@ -172,7 +183,7 @@ int main()
 	iResult = shutdown(acceptSocket, SD_BOTH);
 		if (iResult == SOCKET_ERROR)
 		{
-			printf("'shutdown' faild with error: %d\n", WSAGetLastError());
+			printf("'shutdown' of acceptSocket faild with error: %d\n", WSAGetLastError());
 			closesocket(acceptSocket);
 			if (WSACleanup() != 0)
 			{
@@ -186,7 +197,7 @@ int main()
 	iResult = shutdown(listenSocket, SD_BOTH);
 	if (iResult == SOCKET_ERROR)
 	{
-		printf("'shutdown' faild with error: %d\n", WSAGetLastError());
+		printf("'shutdown' of listenSocket faild with error: %d\n", WSAGetLastError());
 		closesocket(acceptSocket);
 		if (WSACleanup() != 0)
 		{
@@ -202,6 +213,14 @@ int main()
 		printf("WSACleanup faild with error: %d\n", WSAGetLastError());
 		return 1;
 	}
+	return 0;
+}
+DWORD WINAPI ExitThreadFunc(LPVOID lpParam)
+{
+	printf("Press 'q' to shut down the service.\n");
+	char input[2];
+	while (!(gets_s(input, sizeof(input))) && input != "q") {}
+	shutDownService = true;
 	return 0;
 }
 
