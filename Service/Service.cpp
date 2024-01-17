@@ -23,9 +23,9 @@
 #define MAX_MESSAGE_LENGTH 256
 #define MAX_GROUPS 10
 
-DWORD WINAPI ExitThreadFunc(LPVOID lpParam);
-HANDLE threadShutDown;
-bool shutDownService = false; 
+
+bool shutDownService = false;
+int clientNum = 0;
 
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
@@ -110,22 +110,13 @@ int main()
 
 	printf("Server socket is set to listening mode. Waiting for new connection.\n\n\n");
 
-	int clientNum = 0;
-
 	FD_SET set;
 	timeval timeVal;
 	timeVal.tv_sec = 1;
 	timeVal.tv_usec = 0;
 
-	//thread for exit
-	threadShutDown = CreateThread(NULL, 0, &ExitThreadFunc, NULL, 0, NULL);
-	if (threadShutDown == NULL)
-	{
-		printf("Error creating exit thread: %d\n", GetLastError());
-		return 1;
-	}
 
-	while(!shutDownService)
+	while (!shutDownService)
 	{
 		FD_ZERO(&set);
 		FD_SET(listenSocket, &set);
@@ -141,7 +132,6 @@ int main()
 		}
 		else if (selectResult == 0) // timeout expired
 		{
-
 			continue;
 		}
 		else if (FD_ISSET(listenSocket, &set))
@@ -167,14 +157,13 @@ int main()
 				clientNum,
 				clientAddr
 			};
-
 			thread[clientNum] = CreateThread(NULL, NULL, &ClientHandle, &params, NULL, NULL);
 			clientNum++;
 		}
-	}
-
-	WaitForSingleObject(threadShutDown, INFINITE);
-	CloseHandle(threadShutDown);
+		
+		if(shutDownService)
+			break;
+	};
 
 	WaitForMultipleObjects(groupNum, threadSendMess, TRUE, INFINITE);
 	for (int group = 0; group < groupNum; group++)
@@ -213,14 +202,6 @@ int main()
 		printf("WSACleanup faild with error: %d\n", WSAGetLastError());
 		return 1;
 	}
-	return 0;
-}
-DWORD WINAPI ExitThreadFunc(LPVOID lpParam)
-{
-	printf("Press 'q' to shut down the service.\n");
-	char input[2];
-	while (!(gets_s(input, sizeof(input))) && input != "q") {}
-	shutDownService = true;
 	return 0;
 }
 
@@ -312,6 +293,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					disconnected = true;
 					closesocket(acceptedSocket);
 					CloseHandle(thread[client]);
+					clientNum--;
 				}
 				else if (option == 'S')
 				{
@@ -340,6 +322,11 @@ DWORD WINAPI ClientHandle(LPVOID params)
 		}
 	} while (true);
 	printf("The client has been closed\n");
+	if (clientNum == 0)
+	{
+		printf("No more clients connected. Shutting down the server...\n");
+		shutDownService = true;
+	}
 	return 0;
 }
 
