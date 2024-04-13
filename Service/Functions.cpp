@@ -169,6 +169,36 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	return ret;
 }
 
+char** get_all_group_names(hash_table* ht) {
+	char** group_names = NULL;
+	int count = 0;
+	if (ht == NULL || ht->items == NULL) {
+		return NULL;
+	}
+
+	for (int i = 0; i < HASH_TABLE_SIZE; i++) { 
+		hashtable_item* item = &(ht->items[i]);
+		while (item != NULL) {
+			// Allocate memory for the new group name
+			char* name_copy = (char*)malloc((strlen(item->group_name) + 1) * sizeof(char)); // +1 for null terminator
+
+			// Reallocate memory for the array of group names
+			group_names = (char**)realloc(group_names, (count + 1) * sizeof(char*));
+			if (group_names == NULL) {
+				// Memory allocation failed, handle error
+				return NULL;
+			}
+
+			group_names[count] = name_copy;
+			count++;
+
+			item = item->next;
+		}
+	}
+
+	return group_names;
+}
+
 bool list_remove(list_socket* list, SOCKET sock) {
 	listsocket_item* prev = list->head;
 	listsocket_item* temp = prev->next;

@@ -9,13 +9,17 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdlib.h>
+#include <cstdlib>
 #include <stdio.h>
 #include "conio.h"
 #include "Functions.h"
+#include <charconv>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
+#pragma warning (disable: 6011)
+#pragma warning (disable: 6387)
 
 #define SERVER_PORT 33033
 #define BUFFER_SIZE 256
@@ -253,6 +257,8 @@ DWORD WINAPI ClientHandle(LPVOID params)
 
 				if (option == 'C')
 				{
+					char messageToSend[MAX_MESSAGE_LENGTH];
+
 					printf("\nChoosen group of client '%s : %d' :\t%s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					if (!hashtable_findgroup(ht, (dataBuffer))) {
 						printf("Initialization and creation of new group '%s'...\n", dataBuffer);
@@ -269,11 +275,14 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 					list_print(lista->head, (dataBuffer));
+					
+					strcpy(messageToSend, "Successfuly joined to the group '");
+					strcat(messageToSend, dataBuffer);	
+					strcat(messageToSend, "'!\n");
 
-					char messageToSend[BUFFER_SIZE];
-					strcpy_s(messageToSend, "Successfuly joined to the group!\n");
+					printf("Sending message to client '%s : %d' : %s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), messageToSend);
 
-					iResult = send(acceptedSocket, messageToSend, MAX_MESSAGE_SIZE, 0);
+					iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
 
 					if (iResult == SOCKET_ERROR)
 					{
@@ -302,6 +311,40 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					message = strtok(NULL, delimiter);
 					printf("Client wants to send message: %s\t to the group: %s\n", message, group);
 					enqueue(getqueue(ht, (group)), (message));
+				}
+				else if(option == 'L')
+				{
+					if (groupNum > 0)
+					{
+						
+						if (groupNum == 0)
+						{
+							char messageToSend[MAX_MESSAGE_LENGTH];
+							strcpy(messageToSend, "No groups available at the moment.\n");
+							iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+							free(messageToSend);
+						}
+						else {
+							char** group_names = get_all_group_names(ht);
+							char listOfGroups[MAX_MESSAGE_LENGTH];
+							strcpy(listOfGroups, "Current list of groups:\n");
+							for (int i = 0; i < groupNum; i++)
+							{
+								strcat(listOfGroups, group_names[i]);
+								strcat(listOfGroups, "\n");
+							}
+
+							iResult = send(acceptedSocket, listOfGroups, strlen(listOfGroups) + 1, 0);
+							free(listOfGroups);
+						}
+					}
+					else
+					{
+						char* messageToSend = (char*)malloc(MAX_MESSAGE_SIZE);
+						strcpy(messageToSend, "No groups available at the moment.\n");
+						iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+						free(messageToSend);
+					}
 				}
 				else
 				{
@@ -333,7 +376,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 //thread for group: checking if there is messages in the queue and sending it 
 DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	char* group = (char*)lpParam;
-	char* pom = (char*)malloc(sizeof(char) * MAX_MESSAGE_LENGTH);
+	char* pom = (char*)malloc(sizeof(char));
 	queue* groupQueue = getqueue(ht, group);
 	list_socket* list = hashtable_getsockets(ht, group);
 	listsocket_item* socketsInList = list->head;
@@ -342,7 +385,11 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 		if (groupQueue->head != NULL) {
 			pom = dequeue(groupQueue);
 			while (socketsInList != NULL) {
-				int iResult = send(socketsInList->socket, pom, MAX_MESSAGE_SIZE, 0);
+				char message[MAX_MESSAGE_LENGTH - 1];
+				strcpy(message, group);
+				strcat(message, "#");
+				strcat(message, pom);
+				int iResult = send(socketsInList->socket, message, strlen(message) + 1, 0);
 
 				if (iResult == SOCKET_ERROR)
 				{
@@ -362,14 +409,3 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	free(pom);
 	return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file

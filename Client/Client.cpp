@@ -30,9 +30,14 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam);
 void Connect(char* queueName);
 void Disconnect(char* queueName);
 void SendMessageToPass(char* message);
+void GetCurrentListOfGroups();
+void printAllGroups();
+bool contains_hash(const char* str);
+bool isInGroup(char* groupName);
+bool isInAny();
 
 SOCKET connectSocket;
-char* groups[MAX_NUMBER_GROUPS]; 
+char groups[MAX_NUMBER_GROUPS][MAX_MESSAGE_LENGTH];
 int groupCounter = 0;
 
 HANDLE hRecv;
@@ -95,7 +100,9 @@ int main()
 		return false;
 	}
 
+	//mutex for crirical section
 	hMutex = CreateMutex(NULL, FALSE, NULL);
+
 	//thread for news
 	hRecv = CreateThread(NULL, NULL, &ThreadRECV, &connectSocket, NULL, NULL);
 
@@ -108,106 +115,152 @@ int main()
 		printf("\t1. ENTER GROUP\n");
 		printf("\t2. SEND MESSAGE TO THE GROUP\n");
 		printf("\t3. PRINT ALL GROUPS THAT YOU ARE PART OF\n");
-		printf("\t3. EXIT SERVICE\n");
+		printf("\t4. DISCONNECT FRO THE GROUP\n");
+		printf("\t5. SEE ALL CURRENT AVAILABLE GROUPS\n");
+		printf("\t6. EXIT SERVICE\n");
 		printf("\n");
 		char option = _getch();
 		char delimiter[] = "#";
-					switch (option - 48) {
-					case 1:
-						if (groupCounter == MAX_NUMBER_GROUPS)
-						{
-							printf("You are already part of maximum number of groups, please leave some group first...\n");
-							break;
-						}
+		char groupName[MAX_MESSAGE_LENGTH];
+		switch (option - 48) {
+			case 1:
+				if (groupCounter == MAX_NUMBER_GROUPS)
+				{
+					printf("You are already part of maximum number of groups, please leave some group first...\n");
+					break;
+				}
 
-						printf("Enter name of group chat (min three characters): \n");
-						char queueName[MAX_MESSAGE_LENGTH];
-						gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
+				printf("Enter name of group chat (min three characters): \t");
+				char queueName[MAX_MESSAGE_LENGTH];
+				WaitForSingleObject(hMutex, INFINITE);
+				gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
+				ReleaseMutex(hMutex);
 
-						if (isInGroup(queueName))
-						{
-							printf("You are already part of group '%s', please enter another group...\n", queueName);
+				if (groupCounter > 0)
+				{
+					if (isInGroup(queueName))
+					{
+						printf("You are already part of group '%s', please enter another group...\n", queueName);
+						break;
+					}
+					else
+					{
+						messageLen = strlen(queueName);
+						if (messageLen <= 2) {
+							printf("Invalid type of input, try agian...\n");
 							break;
 						}
 						else
 						{
-							messageLen = strlen(queueName);
-							if (messageLen <= 2) {
-								printf("Invalid type of input, try agian...\n");
-								break;
-							}
-							else
-							{
-								strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);									
-								groupCounter++;
-								Connect(queueName);
-								
-							}
-						}
-						break;
-					case 2:
-						if (!isInAny()) {
-							break;
-						}
-						printf("Enter group in witch you want to send message:\n");
-						char groupName[MAX_MESSAGE_LENGTH];
-						WaitForSingleObject(hMutex, INFINITE);
-						gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
-						ReleaseMutex(hMutex);
-						if(!isInGroup(groupName))
-						{ 
-								printf("Enter message (do not enter '#' - it will be deleted from message): \n");
-								char input[MAX_MESSAGE_LENGTH];
-								WaitForSingleObject(hMutex, INFINITE);
-								gets_s(input, MAX_MESSAGE_LENGTH - 1);
-								ReleaseMutex(hMutex);
+							strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);
+							groupCounter++;
+							Connect(queueName);
 
-								char message[MAX_MESSAGE_LENGTH];
-								if (strpbrk(input, "#") != NULL)
-								{
-									char* before, * after;
-									before = strtok(input, delimiter);
-									after = strtok(NULL, delimiter);
-
-									strcpy(message, groupName);
-									strcat(message, "#");
-									strcat(message, before);
-									strcat(message, after);
-									strcat(message, "S");
-								}
-								else
-								{
-									strcpy(message, groupName);
-									strcat(message, "#");
-									strcat(message, input);
-									strcat(message, "S");
-								}
-								printf("Sending message '%s' to service...\n", message);
-								SendMessageToPass(message);
-							}
-						break;
-					case 3:
-						if (!isInAny()) {
-							break;
 						}
-			
-						printf("Enter group you want to leave:\n");
-						char groupName[MAX_MESSAGE_LENGTH];
-						WaitForSingleObject(hMutex, INFINITE);
-						gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
-						ReleaseMutex(hMutex);
-						
-						if(isInGroup(groupName))
-						{
-							Disconnect(groupName);
-						}
-						break;
-					case 4:
-						break;
-					default:
+					}
+					break;
+				}
+				else
+				{
+					messageLen = strlen(queueName);
+					if (messageLen <= 2) {
 						printf("Invalid type of input, try agian...\n");
 						break;
 					}
+					else
+					{
+						strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);
+						groupCounter++;
+						Connect(queueName);
+
+					}
+					break;
+				}
+				break;
+			case 2:
+				if (!isInAny()) {
+					break;
+				}
+				printf("Enter group in witch you want to send message:\t");
+				WaitForSingleObject(hMutex, INFINITE);
+				gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
+				ReleaseMutex(hMutex);
+				if(isInGroup(groupName))
+				{ 
+					printf("Enter message (do not enter '#' - it will be deleted from message): \t");
+					char input[MAX_MESSAGE_LENGTH];
+					WaitForSingleObject(hMutex, INFINITE);
+					gets_s(input, MAX_MESSAGE_LENGTH - 1);
+					ReleaseMutex(hMutex);
+
+					char message[MAX_MESSAGE_LENGTH];
+					if (strpbrk(input, "#") != NULL)
+					{
+						char* before, * after;
+						before = strtok(input, delimiter);
+						after = strtok(NULL, delimiter);
+
+						strcpy(message, groupName);
+						strcat(message, "#");
+						strcat(message, before);
+						strcat(message, after);
+						strcat(message, "S");
+					}
+					else
+					{
+						strcpy(message, groupName);
+						strcat(message, "#");
+						strcat(message, input);
+						strcat(message, "S");
+					}
+					printf("Sending message to service...\n");
+					SendMessageToPass(message);
+				}
+				else
+				{
+					printf("You are not part of group '%s', please enter group first...\n", groupName);
+				}
+				break;
+			case 3:
+				if (!isInAny()) {
+					break;
+				}
+				printAllGroups();
+				break;
+			case 4:
+				if (!isInAny()) {
+					break;
+				}
+			
+				printf("Enter group you want to leave: \t");
+				WaitForSingleObject(hMutex, INFINITE);
+				gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
+				ReleaseMutex(hMutex);
+						
+				if(isInGroup(groupName))
+				{
+					Disconnect(groupName);
+					groupCounter--;
+				}
+				else
+				{
+					printf("You are not part of group '%s', please enter group first...\n", groupName);
+				}
+				break;
+			case 5:
+				if (!isInAny()) {
+					break;
+				}
+				GetCurrentListOfGroups();
+				Sleep(1000);
+
+				break;
+			case 6:
+				break;
+			default:
+				printf("Invalid type of input, try agian...\n");
+				break;
+		}
 	}
 
 	iResult = shutdown(connectSocket, SD_BOTH);
@@ -222,6 +275,7 @@ int main()
 			return 1;
 		}
 	}
+
 	WaitForSingleObject(hMutex, INFINITE);	//wait for thread to finish and then close handle
 	CloseHandle(hMutex);
 	WaitForSingleObject(hRecv, INFINITE);
@@ -234,6 +288,12 @@ int main()
 		return 1;
 	}
 	return 0;
+}
+void printAllGroups() {
+	printf("\n\tList of all groups:\n");
+	for (int i = 0; i < groupCounter; i++) {
+		printf("\t\tGroup %d: %s\n", i + 1, groups[i]);
+	}
 }
 
 bool isInAny() {
@@ -250,11 +310,9 @@ bool isInGroup(char* groupName) {
 	{
 		if (strcmp(groups[i], groupName) == 0)
 		{
-			isGroup = true;
-			break;
+			return true;
 		}
 	}
-	printf("You are not part of group '%s' or that group does not exist, please enter group first...\n", groupName);
 	return isGroup;
 }
 void Connect(char* queueName) {
@@ -323,6 +381,38 @@ void Disconnect(char* queueName) {
 		WSACleanup();
 	}
 }
+void GetCurrentListOfGroups() {
+	FD_SET set;
+	timeval timeVal;
+	FD_ZERO(&set);
+	FD_SET(connectSocket, &set);
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	char message[MAX_MESSAGE_LENGTH];
+	strcpy_s(message, "L");
+
+	int iResult = select(0, NULL, &set, NULL, &timeVal);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Error in select: %ld\n", WSAGetLastError());
+	}
+	else if (iResult == 0)
+	{
+		Sleep(1000);
+	}
+	else if (iResult > 0)
+	{
+		iResult = send(connectSocket, message, strlen(message) + 1, 0);
+	}
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+}
 void SendMessageToPass(char* message) {
 	FD_SET set;
 	timeval timeVal;
@@ -343,7 +433,6 @@ void SendMessageToPass(char* message) {
 	}
 	else if (iResult > 0)
 	{
-		//printf("%s\n", message);
 		iResult = send(connectSocket, message, strlen(message) + 1, 0);
 	}
 
@@ -390,7 +479,16 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			WaitForSingleObject(hMutex, INFINITE);
 			iResult = recv(connectSocketRECV, dataBuffer, BUFFER_SIZE, 0);
 			if (iResult > 0) {
-				printf("News from service: %s\n", dataBuffer);
+				if (contains_hash(dataBuffer))
+				{
+					char* before, * after;
+					before = strtok(dataBuffer, "#");
+					after = strtok(NULL, "#");
+					printf("News from service: New message in group '%s' : %s\n", before, after);
+				}
+				else {
+					printf("News from service: %s\n", dataBuffer);
+				}
 			}
 			else {
 				printf("recv failed with error: %d\n", WSAGetLastError());
@@ -401,13 +499,13 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 	}
 	return 0;
 }
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
 
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+bool contains_hash(const char* str) {
+	while (*str != '\0') {
+		if (*str == '#') {
+			return true;
+		}
+		str++; // Move to the next character
+	}
+	return false;
+}

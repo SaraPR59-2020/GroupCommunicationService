@@ -69,6 +69,7 @@
 	bool hashtable_addgroup(hash_table* ht, char* group_name);
 	bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket);
 	bool hashtable_findgroup(hash_table* ht, char* group_name);
+	char** get_all_group_names(hash_table* ht);
 
 	//for deconnection
 	bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket);
