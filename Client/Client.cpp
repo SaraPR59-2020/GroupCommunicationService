@@ -24,6 +24,7 @@ using namespace std;
 #define SERVER_PORT 33033
 #define BUFFER_SIZE 256
 #define MAX_MESSAGE_LENGTH 256
+#define MAX_NUMBER_GROUPS 10
 
 DWORD WINAPI ThreadRECV(LPVOID lpParam);
 void Connect(char* queueName);
@@ -31,7 +32,9 @@ void Disconnect(char* queueName);
 void SendMessageToPass(char* message);
 
 SOCKET connectSocket;
-char groupName[MAX_MESSAGE_LENGTH];
+char* groups[MAX_NUMBER_GROUPS]; 
+int groupCounter = 0;
+
 HANDLE hRecv;
 HANDLE hMutex;
 int messageLen;
@@ -98,112 +101,113 @@ int main()
 
 	bool doWhile = true;
 
-	while(doWhile)
+	while (doWhile)
 	{
-		int option = 0;
+		int optin = 0;
 		printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
 		printf("\t1. ENTER GROUP\n");
-		printf("\t2. EXIT\n");
+		printf("\t2. SEND MESSAGE TO THE GROUP\n");
+		printf("\t3. PRINT ALL GROUPS THAT YOU ARE PART OF\n");
+		printf("\t3. EXIT SERVICE\n");
 		printf("\n");
-		option = _getch();
-
-		switch (option - 48) {
-		case 1:
-			printf("Enter name of group chat (min three characters): \n");
-			char queueName[MAX_MESSAGE_LENGTH];
-			gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
-			strcpy_s(groupName, MAX_MESSAGE_LENGTH, queueName);
-			
-			//printf(queueName);
-			messageLen = strlen(queueName);
-			if (messageLen <= 2) {
-				printf("Invalid type of input, try agian...\n");
-				break;
-			}
-			else
-			{
-				Connect(queueName);
-				while (doWhile)
-				{
-					int option = 0;
-					printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
-					printf("\t1. SEND MESSAGE TO THE GROUP\n");
-					printf("\t2. EXIT GROUP AND SERVICE\n");
-					printf("\t3. (ADVANCE - ONLY FOR TESTING) SEND RANDOM NUMBER (I = 500 - 1000) OF DEFAULT MESSAGES (messageI)\n");
-					printf("\n");
-					option = _getch();
-					char delimiter[] = "#";
-					char def[] = "default";
-					int numOfMess = rand() % 500 + 500;
+		char option = _getch();
+		char delimiter[] = "#";
 					switch (option - 48) {
 					case 1:
-						printf("Enter message (do not enter '#' - it will be deleted from message): \n");
-						char input[MAX_MESSAGE_LENGTH];
-						WaitForSingleObject(hMutex, INFINITE);
-						gets_s(input, MAX_MESSAGE_LENGTH - 1);
-						ReleaseMutex(hMutex);
-
-						char message[MAX_MESSAGE_LENGTH];
-						if (strpbrk(input, "#") != NULL)
+						if (groupCounter == MAX_NUMBER_GROUPS)
 						{
-							char* before, * after;
-							before = strtok(input, delimiter);
-							after = strtok(NULL, delimiter);
+							printf("You are already part of maximum number of groups, please leave some group first...\n");
+							break;
+						}
 
-							strcpy(message, groupName);
-							strcat(message, "#");
-							strcat(message, before);
-							strcat(message, after);
-							strcat(message, "S");
+						printf("Enter name of group chat (min three characters): \n");
+						char queueName[MAX_MESSAGE_LENGTH];
+						gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
+
+						if (isInGroup(queueName))
+						{
+							printf("You are already part of group '%s', please enter another group...\n", queueName);
+							break;
 						}
 						else
 						{
-							strcpy(message, groupName);
-							strcat(message, "#");
-							strcat(message, input);
-							strcat(message, "S");
+							messageLen = strlen(queueName);
+							if (messageLen <= 2) {
+								printf("Invalid type of input, try agian...\n");
+								break;
+							}
+							else
+							{
+								strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);									
+								groupCounter++;
+								Connect(queueName);
+								
+							}
 						}
-						printf("Sending message '%s' to service...\n", message);
-						SendMessageToPass(message);
 						break;
 					case 2:
-						doWhile = false;
-						Disconnect(groupName);
-						shutingDown = true;
+						if (!isInAny()) {
+							break;
+						}
+						printf("Enter group in witch you want to send message:\n");
+						char groupName[MAX_MESSAGE_LENGTH];
+						WaitForSingleObject(hMutex, INFINITE);
+						gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
+						ReleaseMutex(hMutex);
+						if(!isInGroup(groupName))
+						{ 
+								printf("Enter message (do not enter '#' - it will be deleted from message): \n");
+								char input[MAX_MESSAGE_LENGTH];
+								WaitForSingleObject(hMutex, INFINITE);
+								gets_s(input, MAX_MESSAGE_LENGTH - 1);
+								ReleaseMutex(hMutex);
+
+								char message[MAX_MESSAGE_LENGTH];
+								if (strpbrk(input, "#") != NULL)
+								{
+									char* before, * after;
+									before = strtok(input, delimiter);
+									after = strtok(NULL, delimiter);
+
+									strcpy(message, groupName);
+									strcat(message, "#");
+									strcat(message, before);
+									strcat(message, after);
+									strcat(message, "S");
+								}
+								else
+								{
+									strcpy(message, groupName);
+									strcat(message, "#");
+									strcat(message, input);
+									strcat(message, "S");
+								}
+								printf("Sending message '%s' to service...\n", message);
+								SendMessageToPass(message);
+							}
 						break;
 					case 3:
-						char defaultMess[MAX_MESSAGE_LENGTH];
-						strcpy(defaultMess, groupName);
-						strcat(defaultMess, "#");
-						strcat(defaultMess, def);
-						strcat(defaultMess, "S");
-						printf("Sending '%d' default messages to service...\n", numOfMess);
-						
-						for (int i = 0; i < numOfMess; i++)
-						{
-							printf("%d. ", i + 1);
-							printf("%s\n", defaultMess);
-							SendMessageToPass(defaultMess);
-							Sleep(1500);	//wait for 1.5 seconds
+						if (!isInAny()) {
+							break;
 						}
+			
+						printf("Enter group you want to leave:\n");
+						char groupName[MAX_MESSAGE_LENGTH];
+						WaitForSingleObject(hMutex, INFINITE);
+						gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
+						ReleaseMutex(hMutex);
+						
+						if(isInGroup(groupName))
+						{
+							Disconnect(groupName);
+						}
+						break;
+					case 4:
 						break;
 					default:
 						printf("Invalid type of input, try agian...\n");
 						break;
 					}
-				}
-			}
-			break;
-		case 2:
-			doWhile = false;
-			printf("Shutingdown client...\n");
-			shutingDown = true;
-			break;
-		default:
-			printf("Invalid type of input, try agian...\n");
-			break;
-		}
-		printf("\n");
 	}
 
 	iResult = shutdown(connectSocket, SD_BOTH);
@@ -230,6 +234,28 @@ int main()
 		return 1;
 	}
 	return 0;
+}
+
+bool isInAny() {
+	if (groupCounter == 0) {
+		printf("You are not part of any group, please enter group first...\n");
+		return false;
+	}
+	return true;
+}
+
+bool isInGroup(char* groupName) {
+	bool isGroup = false;
+	for (int i = 0; i < groupCounter; i++)
+	{
+		if (strcmp(groups[i], groupName) == 0)
+		{
+			isGroup = true;
+			break;
+		}
+	}
+	printf("You are not part of group '%s' or that group does not exist, please enter group first...\n", groupName);
+	return isGroup;
 }
 void Connect(char* queueName) {
 	FD_SET set;
@@ -357,7 +383,7 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 			return 0;
 		}
 		else if (iResult == 0) {
-			Sleep(1000);
+			//Sleep(1000);
 			continue;
 		}
 		else if (iResult > 0) {

@@ -355,7 +355,7 @@ DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 			socketsInList = list->head;
 		}
 		else {
-			Sleep(5000);
+			//Sleep(5000);
 			continue;
 		}
 	} while (1);
