@@ -20,6 +20,7 @@
 #pragma comment (lib, "AdvApi32.lib")
 #pragma warning (disable: 6011)
 #pragma warning (disable: 6387)
+#pragma warning (disable: 4996)
 
 #define SERVER_PORT 33033
 #define BUFFER_SIZE 256
@@ -156,6 +157,11 @@ int main()
 				return 1;
 			}
 			printf("\t\tSuccessfully conected to Client. Client address: %s : %d\n\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+
+			char messageToSend[MAX_MESSAGE_LENGTH];
+			strcpy(messageToSend, "Wellcome to service.\n");
+			iResult = send(acceptSocket, messageToSend, strlen(messageToSend) + 1, 0);
+
 			pom params = { 
 				acceptSocket,
 				clientNum,
@@ -325,16 +331,12 @@ DWORD WINAPI ClientHandle(LPVOID params)
 							free(messageToSend);
 						}
 						else {
-							char** group_names = get_all_group_names(ht);
-							char listOfGroups[MAX_MESSAGE_LENGTH];
-							strcpy(listOfGroups, "Current list of groups:\n");
-							for (int i = 0; i < groupNum; i++)
-							{
-								strcat(listOfGroups, group_names[i]);
-								strcat(listOfGroups, "\n");
-							}
+							int count = 0; 
+							char** group_names = get_all_group_names(ht, &count);
+							char* listOfGroups = generate_group_list(group_names, count);
 
 							iResult = send(acceptedSocket, listOfGroups, strlen(listOfGroups) + 1, 0);
+							free_group_names(group_names, count);
 							free(listOfGroups);
 						}
 					}

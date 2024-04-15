@@ -88,8 +88,13 @@ int main()
 	}
 	else
 	{
-		printf("Succasfuly conected to service! \n\n\n");
+		printf("\n\tSuccasfuly conected to service! \n");
 	}
+
+	iResult = recv(connectSocket, databuffer, BUFFER_SIZE, 0);
+	printf("\n===== Service: %s\n", databuffer);
+
+	printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
 	
 	//non-blocking mode
 	u_long mode = 1;
@@ -111,14 +116,12 @@ int main()
 	while (doWhile)
 	{
 		int optin = 0;
-		printf("\t\t\t\tGROUP COMMUNICATION SERVICE\n");
-		printf("\t1. ENTER GROUP\n");
+		printf("\n\t1. ENTER GROUP\n");
 		printf("\t2. SEND MESSAGE TO THE GROUP\n");
 		printf("\t3. PRINT ALL GROUPS THAT YOU ARE PART OF\n");
 		printf("\t4. DISCONNECT FRO THE GROUP\n");
 		printf("\t5. SEE ALL CURRENT AVAILABLE GROUPS\n");
 		printf("\t6. EXIT SERVICE\n");
-		printf("\n");
 		char option = _getch();
 		char delimiter[] = "#";
 		char groupName[MAX_MESSAGE_LENGTH];
@@ -248,9 +251,6 @@ int main()
 				}
 				break;
 			case 5:
-				if (!isInAny()) {
-					break;
-				}
 				GetCurrentListOfGroups();
 				Sleep(1000);
 
@@ -484,10 +484,10 @@ DWORD WINAPI ThreadRECV(LPVOID lpParam) {
 					char* before, * after;
 					before = strtok(dataBuffer, "#");
 					after = strtok(NULL, "#");
-					printf("News from service: New message in group '%s' : %s\n", before, after);
+					printf("===== News from service: New message in group '%s' : %s\n", before, after);
 				}
 				else {
-					printf("News from service: %s\n", dataBuffer);
+					printf("===== News from service: %s\n", dataBuffer);
 				}
 			}
 			else {

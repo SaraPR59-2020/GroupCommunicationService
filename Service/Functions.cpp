@@ -1,5 +1,6 @@
 #include "Functions.h"
 
+
 #define WIN32_LEAN_AND_MEAN 
 
 list_socket* init_list() {
@@ -169,9 +170,8 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	return ret;
 }
 
-char** get_all_group_names(hash_table* ht) {
-	char** group_names = NULL;
-	int count = 0;
+char** get_all_group_names(hash_table* ht, int* count) {
+	char** groups = (char**)malloc(MAX_NUMBER_GROUPS * sizeof(char*));
 	if (ht == NULL || ht->items == NULL) {
 		return NULL;
 	}
@@ -179,24 +179,33 @@ char** get_all_group_names(hash_table* ht) {
 	for (int i = 0; i < HASH_TABLE_SIZE; i++) { 
 		hashtable_item* item = &(ht->items[i]);
 		while (item != NULL) {
-			// Allocate memory for the new group name
-			char* name_copy = (char*)malloc((strlen(item->group_name) + 1) * sizeof(char)); // +1 for null terminator
-
-			// Reallocate memory for the array of group names
-			group_names = (char**)realloc(group_names, (count + 1) * sizeof(char*));
-			if (group_names == NULL) {
-				// Memory allocation failed, handle error
-				return NULL;
-			}
-
-			group_names[count] = name_copy;
-			count++;
+			groups[*count] = (char*)malloc((strlen(item->group_name) + 1) * sizeof(char)); // Allocate memory for group name
+			strcpy(groups[*count],item->group_name);
+			(*count)++;
 
 			item = item->next;
 		}
 	}
 
-	return group_names;
+	return groups;
+}
+char* generate_group_list(char** group_names, int groupNum) {
+	char listOfGroups[MAX_MESSAGE_SIZE];
+
+	strcpy(listOfGroups, "Current list of groups:\n");
+	for (int i = 0; i < groupNum; i++) {
+		strcat(listOfGroups, group_names[i]);
+		strcat(listOfGroups, "\n");
+	}
+
+	return listOfGroups;
+}
+
+void free_group_names(char** groups, int count) {
+	for (int i = 0; i < count; i++) {
+		free(groups[i]);
+	}
+	free(groups);
 }
 
 bool list_remove(list_socket* list, SOCKET sock) {
