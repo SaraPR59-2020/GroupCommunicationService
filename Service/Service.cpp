@@ -27,10 +27,14 @@
 #define MAX_CLIENTS 100
 #define MAX_MESSAGE_LENGTH 256
 #define MAX_GROUPS 10
+#define MAX_GROUP_NAME 20
+char groups[MAX_NUMBER_GROUPS][MAX_GROUP_NAME];
 
 
 bool shutDownService = false;
 int clientNum = 0;
+
+void deleteFromGroups(char* groupName);
 
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
@@ -271,6 +275,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						hashtable_addgroup(ht, (dataBuffer));
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
 						threadSendMess[groupNum] = CreateThread(NULL, NULL, &SendMessageFromQueue, dataBuffer, NULL, NULL);
+						strcpy_s(groups[groupNum], MAX_GROUP_NAME, dataBuffer);
 						groupNum++;
 					}
 					else {
@@ -304,7 +309,9 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 						list_print(lista->head, (dataBuffer));
+						deleteFromGroups(dataBuffer);
 					}
+					
 					disconnected = true;
 					closesocket(acceptedSocket);
 					CloseHandle(thread[client]);
@@ -331,13 +338,15 @@ DWORD WINAPI ClientHandle(LPVOID params)
 							free(messageToSend);
 						}
 						else {
-							int count = 0; 
-							char** group_names = get_all_group_names(ht, &count);
-							char* listOfGroups = generate_group_list(group_names, count);
+							char messageToSend[MAX_MESSAGE_LENGTH];
+							strcpy(messageToSend, "List of all groups:\t");
+							for (int i = 0; i < groupNum; i++) {
+								strcat(messageToSend,  groups[i]);
+								strcat(messageToSend, "\t");
+							}
+							strcat(messageToSend, "\n");
 
-							iResult = send(acceptedSocket, listOfGroups, strlen(listOfGroups) + 1, 0);
-							free_group_names(group_names, count);
-							free(listOfGroups);
+							iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
 						}
 					}
 					else
@@ -373,6 +382,21 @@ DWORD WINAPI ClientHandle(LPVOID params)
 		shutDownService = true;
 	}
 	return 0;
+}
+
+void deleteFromGroups(char* groupName) {
+	for (int i = 0; i < groupNum; i++)
+	{
+		if (strcmp(groups[i], groupName) == 0)
+		{
+			for (int j = i; j < groupNum - 1; j++)
+			{
+				strcpy(groups[j], groups[j + 1]);
+			}
+			groupNum--;
+			break;
+		}
+	}
 }
 
 //thread for group: checking if there is messages in the queue and sending it 

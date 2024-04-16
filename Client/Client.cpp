@@ -23,7 +23,8 @@ using namespace std;
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define SERVER_PORT 33033
 #define BUFFER_SIZE 256
-#define MAX_MESSAGE_LENGTH 256
+#define MAX_GROUP_NAME 20
+#define MAX_MESSAGE_LENGTH 25
 #define MAX_NUMBER_GROUPS 10
 
 DWORD WINAPI ThreadRECV(LPVOID lpParam);
@@ -32,12 +33,13 @@ void Disconnect(char* queueName);
 void SendMessageToPass(char* message);
 void GetCurrentListOfGroups();
 void printAllGroups();
+void deleteFromGroups(char* groupName);
 bool contains_hash(const char* str);
 bool isInGroup(char* groupName);
 bool isInAny();
 
 SOCKET connectSocket;
-char groups[MAX_NUMBER_GROUPS][MAX_MESSAGE_LENGTH];
+char groups[MAX_NUMBER_GROUPS][MAX_GROUP_NAME];
 int groupCounter = 0;
 
 HANDLE hRecv;
@@ -134,9 +136,9 @@ int main()
 				}
 
 				printf("Enter name of group chat (min three characters): \t");
-				char queueName[MAX_MESSAGE_LENGTH];
+				char queueName[MAX_GROUP_NAME];
 				WaitForSingleObject(hMutex, INFINITE);
-				gets_s(queueName, MAX_MESSAGE_LENGTH - 1);
+				gets_s(queueName, MAX_GROUP_NAME - 1);
 				ReleaseMutex(hMutex);
 
 				if (groupCounter > 0)
@@ -155,10 +157,9 @@ int main()
 						}
 						else
 						{
-							strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);
-							groupCounter++;
 							Connect(queueName);
-
+							strcpy_s(groups[groupCounter], MAX_GROUP_NAME, queueName);
+							groupCounter++;
 						}
 					}
 					break;
@@ -172,7 +173,7 @@ int main()
 					}
 					else
 					{
-						strcpy_s(groups[groupCounter], MAX_MESSAGE_LENGTH, queueName);
+						strcpy_s(groups[groupCounter], MAX_GROUP_NAME, queueName);
 						groupCounter++;
 						Connect(queueName);
 
@@ -237,13 +238,13 @@ int main()
 			
 				printf("Enter group you want to leave: \t");
 				WaitForSingleObject(hMutex, INFINITE);
-				gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
+				gets_s(groupName, MAX_GROUP_NAME - 1);
 				ReleaseMutex(hMutex);
 						
 				if(isInGroup(groupName))
 				{
 					Disconnect(groupName);
-					groupCounter--;
+					deleteFromGroups(groupName);
 				}
 				else
 				{
@@ -293,6 +294,20 @@ void printAllGroups() {
 	printf("\n\tList of all groups:\n");
 	for (int i = 0; i < groupCounter; i++) {
 		printf("\t\tGroup %d: %s\n", i + 1, groups[i]);
+	}
+}
+void deleteFromGroups(char* groupName) {
+	for (int i = 0; i < groupCounter; i++)
+	{
+		if (strcmp(groups[i], groupName) == 0)
+		{
+			for (int j = i; j < groupCounter - 1; j++)
+			{
+				strcpy(groups[j], groups[j + 1]);
+			}
+			groupCounter--;
+			break;
+		}
 	}
 }
 
