@@ -77,36 +77,6 @@ unsigned int hash(char* group_name) {
 	return hash % HASH_TABLE_SIZE;
 }
 
-/*
-char* unhash(char* group_name) {
-	int index = 0;
-	unsigned int hash_value = 5381;
-	char group_name_temp[MAX_GROUP_NAME];
-	// Reverse the hashing process
-	while (hash_value != 0) {
-		int c = hash_value % 256; // Extract the least significant byte
-		hash_value /= 256; // Move to the next byte
-
-		group_name[index++] = c;
-	}
-
-	// Null-terminate the string
-	group_name[index] = '\0';
-
-	// Reverse the string
-	int start = 0;
-	int end = index - 1;
-	while (start < end) {
-		char temp = group_name[start];
-		group_name[start] = group_name[end];
-		group_name[end] = temp;
-		start++;
-		end--;
-	}
-	strcpy(group_name_temp, group_name);
-	return group_name_temp;
-}
-*/
 hash_table* init_hash_table() {
 	hash_table* ht = (hash_table*)malloc(sizeof(hash_table));
 	ht->items = (hashtable_item*)malloc(sizeof(hashtable_item) * HASH_TABLE_SIZE);
@@ -199,49 +169,6 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	LeaveCriticalSection(&ht->cs);
 	return ret;
 }
-/*
-char** get_all_group_names(hash_table* ht, int groupNum) {
-	int i = 0;
-	char** groups = (char**)malloc(MAX_NUMBER_GROUPS * MAX_GROUP_NAME * sizeof(char**));
-	if (ht == NULL || ht->items == NULL) {
-		return NULL;
-	}
-
-	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[i]);
-	while (item != NULL) {
-		groups[i] = (char*)malloc(MAX_GROUP_NAME * sizeof(char*));
-
-		strcpy(groups[i], unhash(item[i].group_name));
-
-		item = item->next;
-		i++;	
-	}
-	LeaveCriticalSection(&ht->cs);
-
-
-	return groups;
-}
-
-char* generate_group_list(char** group_names, int groupNum) {
-	char listOfGroups[MAX_MESSAGE_SIZE];
-
-	strcpy(listOfGroups, "Current list of groups:\n");
-	for (int i = 0; i < groupNum; i++) {
-		strcat(listOfGroups, group_names[i]);
-		strcat(listOfGroups, "\n");
-	}
-
-	return listOfGroups;
-}
-
-void free_group_names(char** groups, int count) {
-	for (int i = 0; i < count; i++) {
-		free(groups[i]);
-	}
-	free(groups);
-}
-*/
 
 bool list_remove(list_socket* list, SOCKET sock) {
 	listsocket_item* prev = list->head;

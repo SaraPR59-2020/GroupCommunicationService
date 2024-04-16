@@ -34,7 +34,7 @@ char groups[MAX_NUMBER_GROUPS][MAX_GROUP_NAME];
 bool shutDownService = false;
 int clientNum = 0;
 
-void deleteFromGroups(char* groupName);
+void deleteFromGroups(char* groupName);	//future function for deleting group from the list of groups
 
 DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
@@ -309,7 +309,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 						list_print(lista->head, (dataBuffer));
-						deleteFromGroups(dataBuffer);
+						//deleteFromGroups(dataBuffer);
 					}
 					
 					disconnected = true;
