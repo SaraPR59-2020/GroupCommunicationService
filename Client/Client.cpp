@@ -29,7 +29,8 @@ using namespace std;
 
 DWORD WINAPI ThreadRECV(LPVOID lpParam);
 void Connect(char* queueName);
-void Disconnect(char* queueName);
+void ExitGroup(char* queueName);
+void Disconnect();
 void SendMessageToPass(char* message);
 void GetCurrentListOfGroups();
 void printAllGroups();
@@ -126,7 +127,7 @@ int main()
 		printf("\t6. EXIT SERVICE\n");
 		char option = _getch();
 		char delimiter[] = "#";
-		char groupName[MAX_MESSAGE_LENGTH];
+		//char groupName[MAX_MESSAGE_LENGTH];
 		switch (option - 48) {
 			case 1:
 				if (groupCounter == MAX_NUMBER_GROUPS)
@@ -185,6 +186,7 @@ int main()
 				if (!isInAny()) {
 					break;
 				}
+				char groupName[MAX_GROUP_NAME];
 				printf("Enter group in witch you want to send message:\t");
 				WaitForSingleObject(hMutex, INFINITE);
 				gets_s(groupName, MAX_MESSAGE_LENGTH - 1);
@@ -235,28 +237,30 @@ int main()
 				if (!isInAny()) {
 					break;
 				}
-			
+				char groupNametToLeave[MAX_GROUP_NAME];
 				printf("Enter group you want to leave: \t");
 				WaitForSingleObject(hMutex, INFINITE);
-				gets_s(groupName, MAX_GROUP_NAME - 1);
+				gets_s(groupNametToLeave, MAX_GROUP_NAME - 1);
 				ReleaseMutex(hMutex);
 						
-				if(isInGroup(groupName))
+				if(isInGroup(groupNametToLeave))
 				{
-					Disconnect(groupName);
-					deleteFromGroups(groupName);
+					ExitGroup(groupNametToLeave);
+					deleteFromGroups(groupNametToLeave);
 				}
 				else
 				{
-					printf("You are not part of group '%s', please enter group first...\n", groupName);
+					printf("You are not part of group '%s', please enter group first...\n", groupNametToLeave);
 				}
 				break;
 			case 5:
 				GetCurrentListOfGroups();
 				Sleep(1000);
-
 				break;
 			case 6:
+				Disconnect();
+				doWhile = false;
+				shutingDown = true;	
 				break;
 			default:
 				printf("Invalid type of input, try agian...\n");
@@ -363,7 +367,7 @@ void Connect(char* queueName) {
 		WSACleanup();
 	}
 }
-void Disconnect(char* queueName) {
+void ExitGroup(char* queueName) {
 	FD_SET set;
 	timeval timeVal;
 	FD_ZERO(&set);
@@ -373,6 +377,45 @@ void Disconnect(char* queueName) {
 
 	char message[MAX_MESSAGE_LENGTH];
 	strcpy_s(message, queueName);
+	strcat(message, "E");
+
+	int iResult = select(0, NULL, &set, NULL, &timeVal);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Error in select: %ld\n", WSAGetLastError());
+	}
+	else if (iResult == 0)
+	{
+		Sleep(1000);
+	}
+	else if (iResult > 0)
+	{
+		iResult = send(connectSocket, message, strlen(message) + 1, 0);
+	}
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+}
+void Disconnect() {
+	FD_SET set;
+	timeval timeVal;
+	FD_ZERO(&set);
+	FD_SET(connectSocket, &set);
+	timeVal.tv_sec = 0;
+	timeVal.tv_usec = 0;
+
+	char message[MAX_MESSAGE_LENGTH];
+
+	strcpy(message, groups[0]);
+	for (int i = 1; i < groupCounter; i++) {
+		strcat(message, ",");
+		strcat(message,groups[i]);
+		
+	}
 	strcat(message, "D");
 
 	int iResult = select(0, NULL, &set, NULL, &timeVal);

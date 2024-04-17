@@ -290,7 +290,7 @@ char* dequeue(queue* q) {
 		q->tail = NULL;
 	}
 
-	free(tmp);
 	LeaveCriticalSection(&(q->cs));
+	free(tmp);
 	return result;
 }

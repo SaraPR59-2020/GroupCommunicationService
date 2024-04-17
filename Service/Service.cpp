@@ -14,6 +14,7 @@
 #include "conio.h"
 #include "Functions.h"
 #include <charconv>
+#include <string>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -304,12 +305,17 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				}
 				else if (option == 'D')
 				{
-					printf("\nClient '%s : %d' wants to disconnect from the group: '%s'\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
-					if (hashtable_removesocket(ht, dataBuffer, acceptedSocket)) {
-						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
-						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
-						list_print(lista->head, (dataBuffer));
-						//deleteFromGroups(dataBuffer);
+					printf("\nClient '%s : %d' wants to disconnect.\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+
+					char *groupBelong = strtok(dataBuffer, ",");
+
+					while (groupBelong != NULL) {
+						if (hashtable_removesocket(ht, groupBelong, acceptedSocket)) {
+								printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), groupBelong);
+								list_socket* lista = hashtable_getsockets(ht, (groupBelong));
+								list_print(lista->head, (groupBelong));
+						}
+						groupBelong = strtok(NULL, ",");
 					}
 					
 					disconnected = true;
@@ -357,12 +363,23 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						free(messageToSend);
 					}
 				}
+				else if (option == 'E')
+				{
+					printf("\nClient '%s : %d' wants to disconnect from the group: '%s'\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+
+					if (hashtable_removesocket(ht, dataBuffer, acceptedSocket)) {
+						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
+						list_print(lista->head, (dataBuffer));
+					}
+				}
 				else
 				{
 					printf("Somehow invalid message came from client...\n");
 				}
 				printf("\n");
 			}
+
 			else if (iResult == 0)
 			{
 				printf("Connection with client closed.\n");
@@ -378,8 +395,17 @@ DWORD WINAPI ClientHandle(LPVOID params)
 	printf("The client has been closed\n");
 	if (clientNum == 0)
 	{
-		printf("No more clients connected. Shutting down the server...\n");
-		shutDownService = true;
+		printf("No more clients connected. Do you want to shutdown?\n");
+		if (_getch() == 'y' || _getch() == 'Y')
+		{
+			printf("Shutting down the service...\n");
+			shutDownService = true;
+		}
+		else if (_getch() == 'n' || _getch() == 'N')
+		{
+			printf("Service is still running...\n");
+			shutDownService = false;
+		}
 	}
 	return 0;
 }
