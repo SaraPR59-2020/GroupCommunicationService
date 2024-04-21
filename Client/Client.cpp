@@ -119,12 +119,16 @@ int main()
 	while (doWhile)
 	{
 		int optin = 0;
+
+		WaitForSingleObject(hMutex, INFINITE);
 		printf("\n\t1. ENTER GROUP\n");
 		printf("\t2. SEND MESSAGE TO THE GROUP\n");
 		printf("\t3. PRINT ALL GROUPS THAT YOU ARE PART OF\n");
 		printf("\t4. DISCONNECT FRO THE GROUP\n");
 		printf("\t5. SEE ALL CURRENT AVAILABLE GROUPS\n");
 		printf("\t6. EXIT SERVICE\n");
+		ReleaseMutex(hMutex);
+
 		char option = _getch();
 		char delimiter[] = "#";
 		//char groupName[MAX_MESSAGE_LENGTH];
@@ -181,6 +185,7 @@ int main()
 					}
 					break;
 				}
+				free(queueName);
 				break;
 			case 2:
 				if (!isInAny()) {
@@ -221,11 +226,14 @@ int main()
 					}
 					printf("Sending message to service...\n");
 					SendMessageToPass(message);
+					free(input);
+					free(message);
 				}
 				else
 				{
 					printf("You are not part of group '%s', please enter group first...\n", groupName);
 				}
+				free(groupName);
 				break;
 			case 3:
 				if (!isInAny()) {
@@ -252,6 +260,7 @@ int main()
 				{
 					printf("You are not part of group '%s', please enter group first...\n", groupNametToLeave);
 				}
+				free(groupNametToLeave);
 				break;
 			case 5:
 				GetCurrentListOfGroups();

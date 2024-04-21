@@ -49,12 +49,17 @@
 	typedef struct hashtable_item {
 		char* group_name;
 		list_socket* sockets;
+		bool added;
 		queue* group_queue;
 		struct hashtable_item* next;
 	} hashtable_item;
+	typedef struct hashtable_filed {
+		hashtable_item* items;
+		struct hashtable_filed* next;
+	} hashtable_filed;
 	typedef struct {
 		CRITICAL_SECTION cs;
-		hashtable_item* items;
+		hashtable_filed* fileds;
 	} hash_table;
 #pragma endregion hash_structs
 
@@ -69,6 +74,7 @@
 
 	unsigned int hash(char* group_name);
 	hash_table* init_hash_table();
+	hashtable_item* init_hashtable_item();
 	bool hashtable_addgroup(hash_table* ht, char* group_name);
 	bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket);
 	bool hashtable_findgroup(hash_table* ht, char* group_name);
