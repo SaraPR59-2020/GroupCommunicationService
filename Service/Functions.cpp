@@ -81,12 +81,35 @@ unsigned int hash(char* group_name) {
 hash_table* init_hash_table() {
 	hash_table* ht = (hash_table*)malloc(sizeof(hash_table));
 
+	if (ht == NULL) {
+		printf("ERROR: Hash table initialization failed. :(\n");
+		return NULL;
+	}
+
 	for (int i = 0; i < HASH_TABLE_SIZE; i++) {
-		ht->items[1].group_name = (char*)malloc(MAX_GROUP_NAME);
-		ht->items[1].sockets = NULL;
-		ht->items[1].added = false;
-		ht->items[1].group_queue = (queue*)malloc(sizeof(queue*));
-		ht->items[1].next = NULL;
+		ht->items[i].group_name = (char*)malloc(MAX_GROUP_NAME * sizeof(char));
+		if (ht->items[i].group_name == NULL) {
+			// Handle memory allocation failure
+			/*for (int j = 0; j < i; j++) {
+				free(ht->items[j].group_name);
+			}*/
+			// Cleanup already allocated memory before returning NULL
+			//free(ht);
+			return NULL;
+		}
+		ht->items[i].sockets = init_list();
+		ht->items[i].added = false;
+		ht->items[i].group_queue = (queue*)malloc(sizeof(queue*));
+		if (ht->items[i].group_queue == NULL) {
+			// Handle memory allocation failure
+			/*for (int j = 0; j < i; j++) {
+							free(ht->items[j].group_name);
+			}*/
+			// Cleanup already allocated memory before returning NULL
+			//free(ht);
+			return NULL;
+		}
+		ht->items[i].next = NULL;
 	}
 
 	InitializeCriticalSection(&ht->cs);
@@ -95,7 +118,7 @@ hash_table* init_hash_table() {
 
 bool addgroup_temp(hash_table* ht, hashtable_item* item, char* group_name) {
 	strcpy(item->group_name, group_name);
-	item->sockets = init_list();
+	//item->sockets = init_list();
 	item->added = true;
 	if (item->sockets == NULL) {
 		printf("ERROR: Adding new list of sockets to the group in hash table failed. :(\n");
@@ -110,7 +133,7 @@ bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 	bool ret = false;
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
+	hashtable_item* item = &(ht->items[index]);
 
 	if (item->added == false) {						//if first item in the list is empty - is not added yet, only initialized
 		ret = addgroup_temp(ht, item, group_name);
@@ -142,8 +165,8 @@ bool hashtable_findgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
-	if (strcmp(item->group_name, group_name) == 0) {	//group already exists
+	hashtable_item* item = &(ht->items[index]);
+	if (item != NULL && strcmp(item->group_name, group_name) == 0) {	//group already exists
 		LeaveCriticalSection(&ht->cs);
 		return true;
 	}
@@ -167,8 +190,8 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
-	if (strcmp(item->group_name, group_name) == 0) {
+	hashtable_item* item = &(ht->items[index]);
+	if (item != NULL || strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		ret = list_add(item->sockets, new_socket);
 	}
@@ -221,7 +244,7 @@ bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
 	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
+	hashtable_item* item = &(ht->items[index]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		ret = list_remove(item->sockets, socket);
@@ -245,7 +268,7 @@ list_socket* hashtable_getsockets(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
+	hashtable_item* item = &(ht->items[index]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		return item->sockets;
@@ -269,7 +292,7 @@ queue* getqueue(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_item* item = &(ht->items[0]);
+	hashtable_item* item = &(ht->items[index]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		return item->group_queue;

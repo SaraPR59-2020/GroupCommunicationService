@@ -383,6 +383,17 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 						list_print(lista->head, (dataBuffer));
+
+						char* messageToSend = (char*)malloc(MAX_MESSAGE_SIZE);
+						strcpy(messageToSend, "You have been successfully excluded from the desired group.\n");
+						iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+						free(messageToSend);
+					}
+					else {
+						char* messageToSend = (char*)malloc(MAX_MESSAGE_SIZE);
+						strcpy(messageToSend, "You are not a member of the desired group.\n");
+						iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+						free(messageToSend);
 					}
 				}
 				else
@@ -391,7 +402,6 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				}
 				printf("\n");
 			}
-
 			else if (iResult == 0)
 			{
 				printf("Connection with client closed.\n");
