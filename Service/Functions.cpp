@@ -77,29 +77,49 @@ unsigned int hash(char* group_name) {
 	return hash % HASH_TABLE_SIZE;
 }
 
+//
 hash_table* init_hash_table() {
 	hash_table* ht = (hash_table*)malloc(sizeof(hash_table));
-	ht->items = (hashtable_item*)malloc(sizeof(hashtable_item) * HASH_TABLE_SIZE);
 
+	if (ht == NULL) {
+		printf("ERROR: Hash table initialization failed. :(\n");
+		return NULL;
+	}
 
 	for (int i = 0; i < HASH_TABLE_SIZE; i++) {
-		ht->items[i].sockets = NULL;
-		ht->items[i].group_name = (char*)malloc(MAX_GROUP_NAME);
+		ht->items[i].group_name = (char*)malloc(MAX_GROUP_NAME * sizeof(char));
+		if (ht->items[i].group_name == NULL) {
+			// Handle memory allocation failure
+			/*for (int j = 0; j < i; j++) {
+				free(ht->items[j].group_name);
+			}*/
+			// Cleanup already allocated memory before returning NULL
+			//free(ht);
+			return NULL;
+		}
+		ht->items[i].sockets = init_list();
+		ht->items[i].added = false;
 		ht->items[i].group_queue = (queue*)malloc(sizeof(queue*));
+		if (ht->items[i].group_queue == NULL) {
+			// Handle memory allocation failure
+			/*for (int j = 0; j < i; j++) {
+							free(ht->items[j].group_name);
+			}*/
+			// Cleanup already allocated memory before returning NULL
+			//free(ht);
+			return NULL;
+		}
 		ht->items[i].next = NULL;
 	}
 
 	InitializeCriticalSection(&ht->cs);
-
 	return ht;
 }
 
 bool addgroup_temp(hash_table* ht, hashtable_item* item, char* group_name) {
-	if (strcpy_s(item->group_name, MAX_GROUP_NAME, group_name) != 0) {
-		printf("ERROR: Adding new group to hash table failed. :(\n");
-		return false;
-	}
-	item->sockets = init_list();
+	strcpy(item->group_name, group_name);
+	//item->sockets = init_list();
+	item->added = true;
 	if (item->sockets == NULL) {
 		printf("ERROR: Adding new list of sockets to the group in hash table failed. :(\n");
 		return false;
@@ -115,13 +135,13 @@ bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
 
-	if (item->sockets == NULL) {
+	if (item->added == false) {						//if first item in the list is empty - is not added yet, only initialized
 		ret = addgroup_temp(ht, item, group_name);
 	}
 	else {
 		printf("WARNING: Collision in hash table.\n");
-		while (1) {
-			if (item->next == NULL) {
+		while (1) {										//try to find empty space in the list if there was a collision
+			if (item->next == NULL) {					//if there is no next item in the list	
 				item->next = (hashtable_item*)malloc(sizeof(hashtable_item));
 				item->next->next = NULL;
 				item->next->sockets = NULL;
@@ -140,31 +160,52 @@ bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	return ret;
 }
 
+
 bool hashtable_findgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
-	if (item->sockets == NULL) {
+	if (item != NULL && strcmp(item->group_name, group_name) == 0) {	//group already exists
 		LeaveCriticalSection(&ht->cs);
-		return false;
+		return true;
+	}
+	else
+	{													//group does not exist on this index
+		while (item->next != NULL) {					//try to find group in the list if there was a collision
+			if (strcmp(item->group_name, group_name) == 0) {
+				LeaveCriticalSection(&ht->cs);
+				return true;
+			}
+			item = item->next;
+		}
+	
 	}
 	LeaveCriticalSection(&ht->cs);
-	return true;
+	return false;
 }
 
 bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	int index = hash(group_name);
+	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
-	if (item->sockets == NULL) {
-		printf("ERROR: Group doesn't exist in hash table.\n");
+	if (item != NULL || strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
-		return false;
+		ret = list_add(item->sockets, new_socket);
 	}
+	else
+	{
+		while (item->next != NULL) {
+			if (strcmp(item->group_name, group_name) == 0) {
+				LeaveCriticalSection(&ht->cs);
+				ret = list_add(item->sockets, new_socket);
+			}
+			item = item->next;
+		}
 
-	bool ret = list_add(item->sockets, new_socket);
+	}
 
 	LeaveCriticalSection(&ht->cs);
 	return ret;
@@ -200,15 +241,25 @@ bool list_remove(list_socket* list, SOCKET sock) {
 
 bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
 	int index = hash(group_name);
+	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
-	if (item->sockets == NULL) {
-		printf("ERROR: Group doesn't exist in hash table.\n");
+	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
-		return false;
+		ret = list_remove(item->sockets, socket);
 	}
-	bool ret = list_remove(item->sockets, socket);
+	else
+	{
+		while (item->next != NULL) {
+			if (strcmp(item->group_name, group_name) == 0) {
+				LeaveCriticalSection(&ht->cs);
+				ret = list_add(item->sockets, socket);
+			}
+			item = item->next;
+		}
+
+	}
 	LeaveCriticalSection(&ht->cs);
 	return ret;
 }
@@ -218,18 +269,23 @@ list_socket* hashtable_getsockets(hash_table* ht, char* group_name) {
 
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
-	if (item == NULL) {
-		printf("ERROR: Group doesn't exist in hash table.\n");
+	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
-		return NULL;
+		return item->sockets;
 	}
-	while (item->next != NULL && strncmp(item->next->group_name, group_name, MAX_GROUP_NAME) != 0)
+	else
 	{
-		item = item->next;
+		while (item->next != NULL) {
+			if (strcmp(item->group_name, group_name) == 0) {
+				LeaveCriticalSection(&ht->cs);
+				return item->sockets;
+			}
+			item = item->next;
+		}
+
 	}
 	LeaveCriticalSection(&ht->cs);
-
-	return item->sockets;
+	return NULL;
 }
 
 queue* getqueue(hash_table* ht, char* group_name) {
@@ -237,18 +293,24 @@ queue* getqueue(hash_table* ht, char* group_name) {
 
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
-	if (item == NULL) {
-		printf("ERROR: Group doesn't exist in hash table.\n");
+	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
-		return NULL;
+		return item->group_queue;
 	}
-	while (item->next != NULL && strncmp(item->next->group_name, group_name, MAX_GROUP_NAME) != 0)
+	else
 	{
-		item = item->next;
+		while (item->next != NULL) {
+			if (strcmp(item->group_name, group_name) == 0) {
+				LeaveCriticalSection(&ht->cs);
+				return item->group_queue;
+			}
+			item = item->next;
+		}
+
 	}
 	LeaveCriticalSection(&ht->cs);
 
-	return item->group_queue;
+	return NULL;
 }
 
 

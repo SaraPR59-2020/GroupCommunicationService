@@ -27,7 +27,6 @@
 #define BUFFER_SIZE 256
 #define MAX_CLIENTS 100
 #define MAX_MESSAGE_LENGTH 256
-#define MAX_GROUPS 10
 #define MAX_GROUP_NAME 20
 char groups[MAX_NUMBER_GROUPS][MAX_GROUP_NAME];
 
@@ -41,7 +40,7 @@ DWORD WINAPI ClientHandle(LPVOID params);
 HANDLE thread[MAX_CLIENTS];
 
 DWORD WINAPI SendMessageFromQueue(LPVOID lpParam);
-HANDLE threadSendMess[MAX_GROUPS];
+HANDLE threadSendMess[MAX_NUMBER_GROUPS];
 int groupNum = 0;
 
 hash_table* ht = NULL;
@@ -273,8 +272,22 @@ DWORD WINAPI ClientHandle(LPVOID params)
 					printf("\nChoosen group of client '%s : %d' :\t%s\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					if (!hashtable_findgroup(ht, (dataBuffer))) {
 						printf("Initialization and creation of new group '%s'...\n", dataBuffer);
-						hashtable_addgroup(ht, (dataBuffer));
-						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
+						if(hashtable_addgroup(ht, (dataBuffer)))
+						{
+							printf("Group '%s' successfuly created!\n", dataBuffer);
+						}
+						else
+						{
+							printf("Group '%s' creation failed!\n", dataBuffer);
+						}
+						if (hashtable_addsocket(ht, (dataBuffer), acceptedSocket))
+						{
+							printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+						}
+						else
+						{
+							printf("Client '%s : %d' failed to add to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+						}
 						threadSendMess[groupNum] = CreateThread(NULL, NULL, &SendMessageFromQueue, dataBuffer, NULL, NULL);
 						strcpy_s(groups[groupNum], MAX_GROUP_NAME, dataBuffer);
 						groupNum++;
@@ -284,7 +297,6 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						hashtable_addsocket(ht, (dataBuffer), acceptedSocket);
 						
 					}
-					printf("Client '%s : %d' successfuly added to the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 					list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 					list_print(lista->head, (dataBuffer));
 					
@@ -305,7 +317,7 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				}
 				else if (option == 'D')
 				{
-					printf("\nClient '%s : %d' wants to disconnect.\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
+					printf("\nClient '%s : %d' wants to disconnect.\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 
 					char *groupBelong = strtok(dataBuffer, ",");
 
@@ -371,6 +383,17 @@ DWORD WINAPI ClientHandle(LPVOID params)
 						printf("Client '%s : %d' successfuly disconnect from the group '%s'!\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port), dataBuffer);
 						list_socket* lista = hashtable_getsockets(ht, (dataBuffer));
 						list_print(lista->head, (dataBuffer));
+
+						char* messageToSend = (char*)malloc(MAX_MESSAGE_SIZE);
+						strcpy(messageToSend, "You have been successfully excluded from the desired group.\n");
+						iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+						free(messageToSend);
+					}
+					else {
+						char* messageToSend = (char*)malloc(MAX_MESSAGE_SIZE);
+						strcpy(messageToSend, "You are not a member of the desired group.\n");
+						iResult = send(acceptedSocket, messageToSend, strlen(messageToSend) + 1, 0);
+						free(messageToSend);
 					}
 				}
 				else
@@ -379,7 +402,6 @@ DWORD WINAPI ClientHandle(LPVOID params)
 				}
 				printf("\n");
 			}
-
 			else if (iResult == 0)
 			{
 				printf("Connection with client closed.\n");
