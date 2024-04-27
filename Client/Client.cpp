@@ -226,14 +226,14 @@ int main()
 					}
 					printf("Sending message to service...\n");
 					SendMessageToPass(message);
-					free(input);
-					free(message);
+					//free(input);
+					//free(message);
 				}
 				else
 				{
 					printf("You are not part of group '%s', please enter group first...\n", groupName);
 				}
-				free(groupName);
+				//free(groupName);
 				break;
 			case 3:
 				if (!isInAny()) {

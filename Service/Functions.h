@@ -53,13 +53,9 @@
 		queue* group_queue;
 		struct hashtable_item* next;
 	} hashtable_item;
-	typedef struct hashtable_filed {
-		hashtable_item* items;
-		struct hashtable_filed* next;
-	} hashtable_filed;
 	typedef struct {
 		CRITICAL_SECTION cs;
-		hashtable_filed* fileds;
+		hashtable_item items[HASH_TABLE_SIZE];
 	} hash_table;
 #pragma endregion hash_structs
 

@@ -80,27 +80,18 @@ unsigned int hash(char* group_name) {
 //
 hash_table* init_hash_table() {
 	hash_table* ht = (hash_table*)malloc(sizeof(hash_table));
-	ht->fileds = (hashtable_filed*)malloc(sizeof(hashtable_filed) * HASH_TABLE_SIZE);
 
 	for (int i = 0; i < HASH_TABLE_SIZE; i++) {
-		ht->fileds[i].items = init_hashtable_item();
-		ht->fileds[i].next = NULL;
+		ht->items[1].group_name = (char*)malloc(MAX_GROUP_NAME);
+		ht->items[1].sockets = NULL;
+		ht->items[1].added = false;
+		ht->items[1].group_queue = (queue*)malloc(sizeof(queue*));
+		ht->items[1].next = NULL;
 	}
 
 	InitializeCriticalSection(&ht->cs);
 	return ht;
 }
-
-hashtable_item* init_hashtable_item() {
-	hashtable_item* item = (hashtable_item*)malloc(sizeof(hashtable_item));
-	item->group_name = (char*)malloc(MAX_GROUP_NAME);
-	item->sockets = NULL;
-	item->added = false;
-	item->group_queue = (queue*)malloc(sizeof(queue*));
-	item->next = NULL;
-
-	return item;
-}	
 
 bool addgroup_temp(hash_table* ht, hashtable_item* item, char* group_name) {
 	strcpy(item->group_name, group_name);
@@ -119,8 +110,7 @@ bool hashtable_addgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 	bool ret = false;
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 
 	if (item->added == false) {						//if first item in the list is empty - is not added yet, only initialized
 		ret = addgroup_temp(ht, item, group_name);
@@ -152,8 +142,7 @@ bool hashtable_findgroup(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 	if (strcmp(item->group_name, group_name) == 0) {	//group already exists
 		LeaveCriticalSection(&ht->cs);
 		return true;
@@ -165,7 +154,7 @@ bool hashtable_findgroup(hash_table* ht, char* group_name) {
 				LeaveCriticalSection(&ht->cs);
 				return true;
 			}
-			filed->items = filed->items->next;
+			item = item->next;
 		}
 	
 	}
@@ -178,8 +167,7 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		ret = list_add(item->sockets, new_socket);
@@ -233,8 +221,7 @@ bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
 	bool ret = false;
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		ret = list_remove(item->sockets, socket);
@@ -258,8 +245,7 @@ list_socket* hashtable_getsockets(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		return item->sockets;
@@ -283,8 +269,7 @@ queue* getqueue(hash_table* ht, char* group_name) {
 	int index = hash(group_name);
 
 	EnterCriticalSection(&ht->cs);
-	hashtable_filed* filed = &(ht->fileds[index]);
-	hashtable_item* item = &(filed->items[0]);
+	hashtable_item* item = &(ht->items[0]);
 	if (strcmp(item->group_name, group_name) == 0) {
 		LeaveCriticalSection(&ht->cs);
 		return item->group_queue;
