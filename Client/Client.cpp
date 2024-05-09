@@ -212,8 +212,8 @@ int main()
 
 						strcpy(message, groupName);
 						strcat(message, "#");
-						strcat(message, before);
-						strcat(message, after);
+						if(before != NULL) strcat(message, before);
+						if(after != NULL) strcat(message, after);
 						strcat(message, "S");
 					}
 					else
