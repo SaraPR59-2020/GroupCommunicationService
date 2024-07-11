@@ -450,36 +450,40 @@ void deleteFromGroups(char* groupName) {
 //thread for group: checking if there is messages in the queue and sending it 
 DWORD WINAPI SendMessageFromQueue(LPVOID lpParam) {
 	char* group = (char*)lpParam;
-	char* pom = (char*)malloc(sizeof(char));
 	queue* groupQueue = getqueue(ht, group);
 	list_socket* list = hashtable_getsockets(ht, group);
-	listsocket_item* socketsInList = list->head;
+	listsocket_item* socketsInList;
 
-	do {
+	if (groupQueue == NULL || list == NULL) {
+		printf("Error: Group or list not found for group '%s'\n", group);
+		return 1;
+	}
+
+	while (1) {
+		EnterCriticalSection(&(groupQueue->cs));
 		if (groupQueue->head != NULL) {
-			pom = dequeue(groupQueue);
+			char* pom = dequeue(groupQueue);
+			LeaveCriticalSection(&(groupQueue->cs));
+
+			socketsInList = list->head;
 			while (socketsInList != NULL) {
 				char message[MAX_MESSAGE_LENGTH - 1];
-				strcpy(message, group);
-				strcat(message, "#");
-				strcat(message, pom);
-				int iResult = send(socketsInList->socket, message, strlen(message) + 1, 0);
+				snprintf(message, sizeof(message), "%s#%s", group, pom);
 
-				if (iResult == SOCKET_ERROR)
-				{
+				int iResult = send(socketsInList->socket, message, strlen(message) + 1, 0);
+				if (iResult == SOCKET_ERROR) {
 					printf("send failed with error: %d\n", WSAGetLastError());
 					closesocket(socketsInList->socket);
-					return 1;
+					list_remove(list, socketsInList->socket);
 				}
 				socketsInList = socketsInList->next;
 			}
-			socketsInList = list->head;
+			free(pom);
 		}
 		else {
-			//Sleep(5000);
-			continue;
+			LeaveCriticalSection(&(groupQueue->cs));
+			//Sleep(5000); 
 		}
-	} while (1);
-	free(pom);
+	}
 	return 0;
 }
