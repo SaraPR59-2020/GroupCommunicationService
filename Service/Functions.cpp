@@ -1,6 +1,5 @@
 #include "Functions.h"
 
-
 #define WIN32_LEAN_AND_MEAN 
 
 list_socket* init_list() {
@@ -192,15 +191,19 @@ bool hashtable_addsocket(hash_table* ht, char* group_name, SOCKET new_socket) {
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
 	if (item != NULL || strcmp(item->group_name, group_name) == 0) {
-		LeaveCriticalSection(&ht->cs);
+		
 		ret = list_add(item->sockets, new_socket);
+		LeaveCriticalSection(&ht->cs);
+		return ret;
 	}
 	else
 	{
 		while (item->next != NULL) {
 			if (strcmp(item->group_name, group_name) == 0) {
-				LeaveCriticalSection(&ht->cs);
+				
 				ret = list_add(item->sockets, new_socket);
+				LeaveCriticalSection(&ht->cs);
+				return ret;
 			}
 			item = item->next;
 		}
@@ -246,15 +249,19 @@ bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
 	EnterCriticalSection(&ht->cs);
 	hashtable_item* item = &(ht->items[index]);
 	if (strcmp(item->group_name, group_name) == 0) {
-		LeaveCriticalSection(&ht->cs);
+		
 		ret = list_remove(item->sockets, socket);
+		LeaveCriticalSection(&ht->cs);
+		return ret;
 	}
 	else
 	{
 		while (item->next != NULL) {
 			if (strcmp(item->group_name, group_name) == 0) {
+				
+				ret = list_remove(item->sockets, socket);
 				LeaveCriticalSection(&ht->cs);
-				ret = list_add(item->sockets, socket);
+				return ret;
 			}
 			item = item->next;
 		}
