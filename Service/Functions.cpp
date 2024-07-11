@@ -239,7 +239,7 @@ bool list_remove(list_socket* list, SOCKET sock) {
 		prev = temp;
 		temp = temp->next;
 	}
-	return true;
+	return false;
 }
 
 bool hashtable_removesocket(hash_table* ht, char* group_name, SOCKET socket) {
